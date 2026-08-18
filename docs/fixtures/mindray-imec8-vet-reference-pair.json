@@ -1,0 +1,249 @@
+{
+  "schemaVersion": "petor-monitor/reference-pair/1.0",
+  "createdAt": "2026-08-18",
+  "purpose": "Engineering regression fixture metadata for a user-supplied local video and legacy OCR CSV. Source media is not stored in the repository.",
+  "clinicalUse": false,
+  "expectedHeartRatePostprocessing": {
+    "candidateType": "one unique integer",
+    "captureRangeBpm": {
+      "minimum": 0,
+      "maximum": 200,
+      "inclusive": true
+    },
+    "clinicalNormalRange": false,
+    "singleCharacterDisposition": "keep candidate for manual review; never auto-accept",
+    "reject": [
+      "multiple candidates",
+      "decimal values",
+      "negative values",
+      "values above 200"
+    ],
+    "forbiddenTransformations": [
+      "clamp to 0 or 200",
+      "guess a missing leading digit",
+      "forward-fill a previous value"
+    ],
+    "crossSlotStabilization": {
+      "jumpThreshold": "max(8 bpm, 15% of the last accepted HR)",
+      "firstLargeJump": "manual-review candidate only",
+      "confirmation": "accept the next slot's own HR only when it is within 2 bpm of the pending candidate",
+      "forbidden": [
+        "average the two candidates",
+        "backfill the first pending slot",
+        "emit the prior baseline for a rejected slot"
+      ]
+    }
+  },
+  "video": {
+    "displayName": "1.mp4",
+    "sha256": "efe61f386011fdc53c6e445c3e64d589463a85dce28bb9f5018ae93bc146dee1",
+    "sizeBytes": 92268591,
+    "durationSeconds": 602.333333,
+    "width": 544,
+    "height": 960,
+    "nominalFramesPerSecond": 21,
+    "frameCount": 12649,
+    "videoCodec": "H.264/avc1",
+    "audioCodec": "AAC"
+  },
+  "referenceCsv": {
+    "displayName": "8.8_143312_hr_data_full.csv",
+    "sha256": "72d4ebff79e9fcdf5e58b5b4c3ce0129e558c662ce59164b16a61782627d79f6",
+    "sizeBytes": 22125,
+    "encoding": "UTF-8 with BOM",
+    "lineEnding": "CRLF",
+    "columns": [
+      "timestamp",
+      "video_time_s",
+      "raw_value",
+      "filtered_value"
+    ],
+    "rowCount": 603,
+    "firstVideoTimeSeconds": 0,
+    "lastVideoTimeSeconds": 602,
+    "cadenceSeconds": 1,
+    "timestampRange": [
+      "2026-08-01 14:23:09.733",
+      "2026-08-01 14:33:11.733"
+    ],
+    "directRawEqualsFilteredCount": 481,
+    "filteredOrDerivedCount": 122,
+    "directRawValueRangeBpm": [
+      40,
+      66
+    ],
+    "filteredValueRangeBpm": [
+      40,
+      66
+    ],
+    "rawNumericCount": 592,
+    "rawMissingCount": 11,
+    "rawSingleDigitCount": 109,
+    "rawSingleDigitHistogram": {
+      "3": 1,
+      "4": 66,
+      "5": 41,
+      "7": 1
+    },
+    "raw517Count": 2,
+    "derivedEqualsPreviousFilteredCount": 120,
+    "derivedRunCount": 61,
+    "longestDerivedRun": {
+      "firstVideoTimeSeconds": 493,
+      "lastVideoTimeSeconds": 499,
+      "rowCount": 7
+    },
+    "atOrAfter360Seconds": {
+      "rowCount": 243,
+      "filteredOrDerivedCount": 119
+    },
+    "warning": "filtered_value is output from a legacy OCR/filter pipeline and can carry a previous value forward. It is not independent manual ground truth or monitor-exported source data."
+  },
+  "alignment": {
+    "mode": "video_time_s",
+    "offsetSeconds": 0,
+    "maximumDeltaSeconds": 0.5,
+    "videoEndVsLastReferenceDeltaSeconds": 0.333333,
+    "useAbsoluteTimestamp": false
+  },
+  "previousBrowserRunBeforeCrossSlotStabilizationAndStrictFrameGate": {
+    "runDate": "2026-08-18",
+    "mode": "one-second HR-only",
+    "consensusFramesPerSlot": 3,
+    "scheduledSlotRangeSeconds": [
+      0,
+      602
+    ],
+    "completedSlots": 603,
+    "recordTableRows": 603,
+    "comparisonTableRows": 603,
+    "firstCompletedSlotLocalTime": "16:10:46",
+    "lastCompletedSlotLocalTime": "16:22:18",
+    "elapsedBetweenCompletedSlotsSeconds": 692,
+    "statusCountsAllSlots": {
+      "ok": 269,
+      "low-confidence": 320,
+      "not-found": 13,
+      "out-of-range": 1
+    },
+    "primaryReferenceMetrics": {
+      "eligibleDirectReferenceCount": 481,
+      "filteredOrDerivedExcludedCount": 122,
+      "acceptedExactCount": 268,
+      "rejectedCount": 85,
+      "reviewCount": 128,
+      "exactCoveragePercent": 55.7,
+      "withinTwoCoveragePercent": 55.7,
+      "withinFiveCoveragePercent": 55.7,
+      "meanAbsoluteErrorBpmAcceptedOnly": 0,
+      "rootMeanSquareErrorBpmAcceptedOnly": 0,
+      "meanBiasBpmAcceptedOnly": 0,
+      "maximumAbsoluteErrorBpmAcceptedOnly": 0
+    },
+    "negativeChecks": [
+      "At 602 seconds the OCR candidate was 4 with low-confidence status; it was not completed to 50 and was not accepted.",
+      "At about 311 seconds the OCR candidate 514 was out-of-range and was not accepted.",
+      "The 230-second sampling window crossed a display transition from HR 59 near 229.86 seconds to HR 57 near 230.17 seconds; its legacy CSV row remains excluded as derived."
+    ],
+    "interpretation": "Engineering agreement with direct points from a legacy OCR CSV; not independent ground truth or clinical accuracy."
+  },
+  "currentBrowserRun": {
+    "runDate": "2026-08-18",
+    "executionEnvironment": "local production preview in a Chromium-based in-app browser on macOS",
+    "mode": "one-second HR-only",
+    "frameAcceptance": "requestVideoFrameCallback metadata.mediaTime within 0.05 seconds of every requested frame",
+    "crossSlotStabilization": "max(8 bpm, 15%) jump gate; next consecutive slot within 2 bpm confirms its own value",
+    "consensusFramesPerSlot": 3,
+    "ocrUnits": 1809,
+    "scheduledSlotRangeSeconds": [
+      0,
+      602
+    ],
+    "completedSlots": 603,
+    "recordTableRows": 603,
+    "comparisonTableRows": 603,
+    "qualityCountsAllSlots": {
+      "complete": 255,
+      "review": 339,
+      "missing": 9
+    },
+    "primaryReferenceMetrics": {
+      "eligibleDirectReferenceCount": 481,
+      "filteredOrDerivedExcludedCount": 122,
+      "acceptedExactCount": 254,
+      "rejectedCount": 89,
+      "reviewCount": 138,
+      "exactCoveragePercent": 52.8,
+      "withinTwoCoveragePercent": 52.8,
+      "withinFiveCoveragePercent": 52.8,
+      "meanAbsoluteErrorBpmAcceptedOnly": 0,
+      "rootMeanSquareErrorBpmAcceptedOnly": 0,
+      "meanBiasBpmAcceptedOnly": 0,
+      "maximumAbsoluteErrorBpmAcceptedOnly": 0
+    },
+    "crossSlotJumpExample": {
+      "pendingSlotSeconds": 58,
+      "previousAcceptedBaselineBpm": 59,
+      "pendingCandidateBpm": 47,
+      "pendingReferenceBpm": 47,
+      "nextSlotSeconds": 59,
+      "confirmedCurrentBpm": 45,
+      "confirmedReferenceBpm": 45,
+      "behavior": "58-second slot remained a review candidate; 59-second slot accepted 45 without averaging or backfilling"
+    },
+    "negativeChecks": [
+      "All 603 requested media-second slots aligned at delta 0.000 seconds in the comparison report.",
+      "At 602 seconds the OCR candidate was 4 with low-confidence status; it was not completed to or replaced by the legacy filtered value 50.",
+      "No accepted primary-reference pair differed from the supplied direct reference; rejected and review candidates remain excluded from accepted metrics."
+    ],
+    "sourceMediaStoredInRepository": false,
+    "interpretation": "Current engineering agreement with direct points from a legacy OCR CSV. The CSV is not independent ground truth, and these numbers are not clinical accuracy or mobile-device validation."
+  },
+  "manualFrameChecks": [
+    {
+      "mediaTimeSeconds": 0.02,
+      "screenHrBpm": 46,
+      "csvRawValue": 46,
+      "csvFilteredValue": 46,
+      "classification": "positive"
+    },
+    {
+      "mediaTimeSeconds": 120.21,
+      "screenHrBpm": 54,
+      "csvRawValue": 54,
+      "csvFilteredValue": 54,
+      "classification": "positive"
+    },
+    {
+      "mediaTimeSeconds": 230.2,
+      "screenHrBpm": 57,
+      "csvRawValue": 5,
+      "csvFilteredValue": 59,
+      "classification": "derived-reference-excluded"
+    },
+    {
+      "mediaTimeSeconds": 300.21,
+      "screenHrBpm": 52,
+      "csvRawValue": 52,
+      "csvFilteredValue": 52,
+      "classification": "positive"
+    },
+    {
+      "mediaTimeSeconds": 602.21,
+      "screenHrBpm": 47,
+      "csvRawValue": 4,
+      "csvFilteredValue": 50,
+      "classification": "derived-reference-excluded"
+    }
+  ],
+  "safetyAssertions": [
+    "Use video_time_s for alignment; timestamp has no timezone and is not needed.",
+    "Exclude filtered-or-derived reference points from primary metrics.",
+    "Exclude manual corrections and low-confidence OCR from primary algorithm metrics.",
+    "Do not carry any CSV or OCR value forward to fill a missing point.",
+    "Treat 0 and 200 as inclusive engineering capture boundaries, not clinical normal limits.",
+    "Keep every single-character HR candidate in manual-review status even when frames agree.",
+    "Reject multiple candidates, decimals, negative values, and values above 200 without clamping or guessing.",
+    "Report agreement with the supplied reference source, not clinical accuracy."
+  ]
+}

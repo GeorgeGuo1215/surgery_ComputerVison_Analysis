@@ -1,0 +1,221 @@
+{
+  "schemaVersion": 1,
+  "fixtureId": "mindray-imec8-vet-e52145",
+  "source": {
+    "fileBasename": "e52145cd809272e19cf7960d9758892a.mp4",
+    "sha256": "1344026b1adcb7b9ff0f384f536d76e555c9bc0d6d27e4000353cf8be29f98b0",
+    "sizeBytes": 18304772,
+    "container": "ISO Base Media / MP4",
+    "durationSeconds": 366.931,
+    "video": {
+      "codec": "H.264",
+      "widthPixels": 544,
+      "heightPixels": 960,
+      "orientation": "portrait",
+      "nominalFramesPerSecond": 29
+    },
+    "audio": {
+      "present": true,
+      "codec": "AAC"
+    }
+  },
+  "device": {
+    "manufacturer": "Mindray",
+    "model": "iMEC8 Vet",
+    "identificationBasis": "Manufacturer and model text are visible on the monitor bezel."
+  },
+  "annotation": {
+    "method": "Manual visual inspection of sparse frames decoded locally from the exact SHA-256-matched video.",
+    "annotatedOn": "2026-08-17",
+    "timeBasis": "Seconds from the beginning of the media file.",
+    "seekToleranceSeconds": 0.35,
+    "nullMeaning": "The value is not visibly displayed or cannot be read safely; it must not be filled from an earlier frame.",
+    "fieldNotes": {
+      "pr": "PR is the pulse-rate value shown beside SpO2 and is independent of ECG-derived HR.",
+      "nibp": "Assertions cover the clearly legible systolic/diastolic pair only. The smaller parenthetical value is intentionally excluded.",
+      "fico2": "The small lower CO2 value is mapped to FiCO2 for this engineering fixture; confirm this field mapping against the device configuration before any clinical validation."
+    },
+    "heartRateSummary": {
+      "visibleSampleCount": 5,
+      "visibleValuesBpm": [
+        90,
+        85,
+        88,
+        106,
+        85
+      ],
+      "visibleValueRangeBpm": [
+        85,
+        106
+      ],
+      "missingSampleCount": 2,
+      "captureBoundarySamplesPresent": false,
+      "note": "Sparse samples contain no observed HR of 0 or 200; inclusive range boundaries require synthetic tests. A displayed dash remains missing and must never be converted to zero."
+    }
+  },
+  "samples": [
+    {
+      "requestedTimeSeconds": 0,
+      "decodedFrameTimeSeconds": 0,
+      "visibility": "clear",
+      "expected": {
+        "hr": { "display": "90", "values": [90], "status": "visible" },
+        "spo2": { "display": "98", "values": [98], "status": "visible" },
+        "pr": { "display": "91", "values": [91], "status": "visible" },
+        "nibp": { "display": "115/60", "values": [115, 60], "status": "visible" },
+        "rr": { "display": "13", "values": [13], "status": "visible" },
+        "etco2": { "display": "49", "values": [49], "status": "visible" },
+        "fico2": { "display": "6", "values": [6], "status": "visible" },
+        "temp": { "display": "36.7", "values": [36.7], "status": "visible" }
+      }
+    },
+    {
+      "requestedTimeSeconds": 91.7,
+      "decodedFrameTimeSeconds": 92,
+      "visibility": "clear",
+      "expected": {
+        "hr": { "display": "85", "values": [85], "status": "visible" },
+        "spo2": { "display": "98", "values": [98], "status": "visible" },
+        "pr": { "display": "88", "values": [88], "status": "visible" },
+        "nibp": { "display": "115/60", "values": [115, 60], "status": "visible" },
+        "rr": { "display": "12", "values": [12], "status": "visible" },
+        "etco2": { "display": "49", "values": [49], "status": "visible" },
+        "fico2": { "display": "6", "values": [6], "status": "visible" },
+        "temp": { "display": "36.7", "values": [36.7], "status": "visible" }
+      }
+    },
+    {
+      "requestedTimeSeconds": 220.1,
+      "decodedFrameTimeSeconds": 220,
+      "visibility": "clear",
+      "expected": {
+        "hr": { "display": "88", "values": [88], "status": "visible" },
+        "spo2": { "display": "98", "values": [98], "status": "visible" },
+        "pr": { "display": "92", "values": [92], "status": "visible" },
+        "nibp": { "display": "115/60", "values": [115, 60], "status": "visible" },
+        "rr": { "display": "11", "values": [11], "status": "visible" },
+        "etco2": { "display": "49", "values": [49], "status": "visible" },
+        "fico2": { "display": "6", "values": [6], "status": "visible" },
+        "temp": { "display": "36.7", "values": [36.7], "status": "visible" }
+      }
+    },
+    {
+      "requestedTimeSeconds": 250,
+      "decodedFrameTimeSeconds": 250,
+      "visibility": "clear",
+      "expected": {
+        "hr": { "display": "106", "values": [106], "status": "visible" },
+        "spo2": { "display": "97", "values": [97], "status": "visible" },
+        "pr": { "display": "108", "values": [108], "status": "visible" },
+        "nibp": { "display": "99/54", "values": [99, 54], "status": "visible" },
+        "rr": { "display": "12", "values": [12], "status": "visible" },
+        "etco2": { "display": "54", "values": [54], "status": "visible" },
+        "fico2": { "display": "6", "values": [6], "status": "visible" },
+        "temp": { "display": "36.7", "values": [36.7], "status": "visible" }
+      }
+    },
+    {
+      "requestedTimeSeconds": 280,
+      "decodedFrameTimeSeconds": 280,
+      "visibility": "clear",
+      "expected": {
+        "hr": { "display": "85", "values": [85], "status": "visible" },
+        "spo2": { "display": "97", "values": [97], "status": "visible" },
+        "pr": { "display": "85", "values": [85], "status": "visible" },
+        "nibp": { "display": "99/54", "values": [99, 54], "status": "visible" },
+        "rr": { "display": "13", "values": [13], "status": "visible" },
+        "etco2": { "display": "51", "values": [51], "status": "visible" },
+        "fico2": { "display": "6", "values": [6], "status": "visible" },
+        "temp": { "display": "36.5", "values": [36.5], "status": "visible" }
+      }
+    },
+    {
+      "requestedTimeSeconds": 300,
+      "decodedFrameTimeSeconds": 300,
+      "visibility": "clear_with_alarm_banner",
+      "expected": {
+        "hr": { "display": null, "values": [], "status": "missing", "rawScreen": "---" },
+        "spo2": { "display": "98", "values": [98], "status": "visible" },
+        "pr": { "display": "86", "values": [86], "status": "visible" },
+        "nibp": { "display": "99/54", "values": [99, 54], "status": "visible" },
+        "rr": { "display": "13", "values": [13], "status": "visible" },
+        "etco2": { "display": "48", "values": [48], "status": "visible" },
+        "fico2": { "display": "6", "values": [6], "status": "visible" },
+        "temp": { "display": "32.8", "values": [32.8], "status": "visible" }
+      }
+    },
+    {
+      "requestedTimeSeconds": 360,
+      "decodedFrameTimeSeconds": 360,
+      "visibility": "clear_with_alarm_banner_and_foreground_cable",
+      "expected": {
+        "hr": { "display": null, "values": [], "status": "missing", "rawScreen": "---" },
+        "spo2": { "display": "97", "values": [97], "status": "visible" },
+        "pr": { "display": "87", "values": [87], "status": "visible" },
+        "nibp": { "display": "99/54", "values": [99, 54], "status": "visible" },
+        "rr": { "display": "12", "values": [12], "status": "visible" },
+        "etco2": { "display": "49", "values": [49], "status": "visible" },
+        "fico2": { "display": "6", "values": [6], "status": "visible" },
+        "temp": { "display": null, "values": [], "status": "missing", "rawScreen": "no numeric temperature shown" }
+      }
+    }
+  ],
+  "keyEvents": [
+    {
+      "id": "hr-missing-while-pr-remains",
+      "approximateStartSeconds": 285,
+      "observedAtSeconds": [285, 300, 360],
+      "observations": [
+        { "timeSeconds": 285, "hrRawScreen": "---", "pr": 88 },
+        { "timeSeconds": 300, "hrRawScreen": "---", "pr": 86 },
+        { "timeSeconds": 360, "hrRawScreen": "---", "pr": 87 }
+      ],
+      "requiredBehavior": [
+        "Record HR as missing.",
+        "Do not carry the earlier HR value forward.",
+        "Keep PR as an independent numeric reading."
+      ]
+    },
+    {
+      "id": "partial-occlusion-and-monitor-menu",
+      "startSeconds": 326,
+      "endSeconds": 330.9,
+      "description": "Foreground tubing and a hand cross the view while a monitor settings dialog covers much of the left and center display; some right-column values remain visible.",
+      "requiredBehavior": [
+        "Reject or flag fields whose ROI is covered.",
+        "Do not turn menu text into a vital sign.",
+        "Do not fill covered fields from earlier frames."
+      ]
+    },
+    {
+      "id": "temperature-display-disappears",
+      "lastClearlyVisible": { "timeSeconds": 324, "display": "30.6" },
+      "firstClearlyAbsent": { "timeSeconds": 331, "display": null },
+      "observedAbsentThroughSeconds": 360,
+      "description": "The temperature number is no longer shown after the monitor interaction. This fixture does not infer why it disappeared.",
+      "requiredBehavior": [
+        "Record temperature as missing once no numeric value is shown.",
+        "Do not carry 30.6 or any earlier temperature forward."
+      ]
+    }
+  ],
+  "privacy": {
+    "containsRealOperatingRoomFootage": true,
+    "sourceMediaContainsAudio": true,
+    "fixtureEmbedsMediaOrDecodedFrames": false,
+    "fixtureContainsAbsoluteLocalPath": false,
+    "mediaHandling": "Keep the source video and decoded frames local. Do not commit them, upload them, attach them to CI artifacts, or deploy them with GitHub Pages.",
+    "annotationHandling": "This JSON intentionally records only technical media metadata and monitor values; it does not transcribe visible room labels, dates, people, voices, or other identifiers."
+  },
+  "validationScope": {
+    "purpose": "Engineering regression of local video import, seeking, ROI alignment, OCR parsing, missing-value handling, and export behavior for this exact file.",
+    "engineeringOnly": true,
+    "limitations": [
+      "The labels are sparse manual observations, not monitor telemetry or a clinically adjudicated reference dataset.",
+      "The sparse HR labels do not validate the 0 or 200 capture boundaries and contain no clinically adjudicated normal range.",
+      "A passing result does not establish clinical accuracy, safety, generalization to another monitor, camera, angle, lighting condition, or patient.",
+      "Do not use this fixture for diagnosis, alarm replacement, autonomous charting, or medical-record finalization.",
+      "Every exported value still requires human review against the original monitor display."
+    ]
+  }
+}
