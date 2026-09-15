@@ -1,5 +1,5 @@
 const CACHE_PREFIX = 'petor-monitor-';
-const CACHE_NAME = `${CACHE_PREFIX}shell-v5-timestamp-autosave`;
+const CACHE_NAME = `${CACHE_PREFIX}shell-v6-long-run`;
 const CORE_PATHS = [
   './',
   './index.html',

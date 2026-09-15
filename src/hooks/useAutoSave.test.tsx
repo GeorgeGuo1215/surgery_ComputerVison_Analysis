@@ -52,6 +52,22 @@ describe('five-minute file saving', () => {
     expect(saveHeartRateFile).toHaveBeenCalledExactlyOnceWith(session, null);
   });
 
+  it('handles 288 five-minute deadlines across a simulated day with all 289 rows retained', async () => {
+    let session = makeSession();
+    const anchor = Date.now();
+    const { rerender } = renderHook(({ value }) => useAutoSave(value, true, true), { initialProps: { value: session } });
+    for (let index = 1; index <= 288; index += 1) {
+      vi.setSystemTime(anchor + index * 300_000 - 1000);
+      const timestamp = new Date(anchor + index * 300_000).toISOString();
+      session = { ...session, snapshots: [...session.snapshots, createSnapshot(emptyReadingMap(timestamp), 'scheduled', timestamp)] };
+      rerender({ value: session });
+      await advance(1000);
+    }
+    expect(saveHeartRateFile).toHaveBeenCalledTimes(288);
+    expect(vi.mocked(saveHeartRateFile).mock.calls.at(-1)![0].snapshots).toHaveLength(289);
+    expect(new Set(session.snapshots.map((row) => row.scheduledAt)).size).toBe(289);
+  });
+
   it('defers a hidden-page stop until the page is visible and does not save empty sessions', async () => {
     const session = makeSession();
     const { rerender } = renderHook(({ active, visible, value }) => useAutoSave(value, active, visible), {

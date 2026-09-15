@@ -1,3 +1,5 @@
+import { useEffect, useState } from 'react';
+import { flushSync } from 'react-dom';
 import type { RecordSnapshot, VitalKey } from '../domain/types';
 import { formatMediaTime } from '../domain/offline';
 import { ACTIVE_VITAL_DEFINITIONS, isAcceptedHeartRateReading } from '../domain/vitals';
@@ -9,13 +11,14 @@ interface RecordTableProps {
   onCorrect: (id: string, key: VitalKey) => void;
 }
 
-function formatTime(iso: string) {
-  return new Intl.DateTimeFormat('zh-CN', {
+const timeFormatter = new Intl.DateTimeFormat('zh-CN', {
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit',
     hour12: false,
-  }).format(new Date(iso));
+  });
+function formatTime(iso: string) {
+  return timeFormatter.format(new Date(iso));
 }
 
 const qualityLabels = {
@@ -25,8 +28,30 @@ const qualityLabels = {
 };
 
 export function RecordTable({ snapshots, onToggleVerified, onNoteChange, onCorrect }: RecordTableProps) {
+  const pageSize = 50;
+  const [selectedPage, setSelectedPage] = useState<number | null>(null);
+  const [printing, setPrinting] = useState(false);
+  useEffect(() => {
+    const before = () => flushSync(() => setPrinting(true));
+    const after = () => setPrinting(false);
+    window.addEventListener('beforeprint', before);
+    window.addEventListener('afterprint', after);
+    return () => {
+      window.removeEventListener('beforeprint', before);
+      window.removeEventListener('afterprint', after);
+    };
+  }, []);
+  const lastPage = Math.max(0, Math.ceil(snapshots.length / pageSize) - 1);
+  const page = selectedPage == null ? lastPage : Math.min(selectedPage, lastPage);
+  const visibleSnapshots = printing ? snapshots : snapshots.slice(page * pageSize, (page + 1) * pageSize);
   return (
     <div className="table-wrap">
+      {snapshots.length > pageSize && <nav className="record-pagination" aria-label="记录分页">
+        <span>共 {snapshots.length} 行 · 第 {page + 1}/{lastPage + 1} 页 · 每页 {pageSize} 行（导出包含全部记录）</span>
+        <button type="button" className="button ghost" disabled={page === 0} onClick={() => setSelectedPage(page - 1)}>上一页</button>
+        <button type="button" className="button ghost" disabled={page === lastPage} onClick={() => setSelectedPage(page + 1)}>下一页</button>
+        <button type="button" className="button ghost" disabled={selectedPage == null} onClick={() => setSelectedPage(null)}>跟随最新记录</button>
+      </nav>}
       <table className="record-table">
         <thead>
           <tr>
@@ -54,7 +79,7 @@ export function RecordTable({ snapshots, onToggleVerified, onNoteChange, onCorre
               </td>
             </tr>
           ) : (
-            snapshots.map((snapshot) => (
+            visibleSnapshots.map((snapshot) => (
               <tr key={snapshot.id}>
                 <td className="time-cell">
                   <strong>{snapshot.mediaTimeSeconds == null ? formatTime(snapshot.scheduledAt) : `视频 ${formatMediaTime(snapshot.mediaTimeSeconds)}`}</strong>

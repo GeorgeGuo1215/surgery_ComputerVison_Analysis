@@ -24,6 +24,7 @@ export type SaveSessionResult =
       ok: true;
       key: typeof SESSION_STORAGE_KEY;
       version: typeof CURRENT_SESSION_VERSION;
+      warning?: string;
     }
   | {
       ok: false;
@@ -172,7 +173,19 @@ export function saveSession(state: SessionState): SaveSessionResult {
 
   let serialized: string;
   try {
-    serialized = JSON.stringify(session);
+    serialized = JSON.stringify({
+      ...session,
+      snapshots: session.snapshots.map((snapshot) => ({
+        ...snapshot,
+        readings: Object.fromEntries(VITAL_KEYS.map((key) => {
+          const reading = snapshot.readings[key];
+          // Omit only exact empty defaults. Retain timestamps, historical readings,
+          // reasons and future fields; normalization restores the same empty value.
+          const empty = key !== 'hr' && JSON.stringify(reading) === JSON.stringify(emptyReadingMap(reading.capturedAt)[key]);
+          return [key, empty ? { capturedAt: reading.capturedAt } : reading];
+        })),
+      })),
+    });
   } catch (error) {
     return failureResult('serialization-failed', error);
   }
@@ -196,7 +209,12 @@ export function saveSession(state: SessionState): SaveSessionResult {
   } catch {
     // Saving succeeded; legacy cleanup must not turn it into a false failure.
   }
-  return { ok: true, key: SESSION_STORAGE_KEY, version: CURRENT_SESSION_VERSION };
+  return {
+    ok: true, key: SESSION_STORAGE_KEY, version: CURRENT_SESSION_VERSION,
+    ...(serialized.length * 2 >= 3 * 1024 * 1024 ? {
+      warning: '浏览器草稿已较大，请确认本地文件已保存后，按病例或每日归档并新建记录；同一网站域名下的其他页面会共享存储额度。',
+    } : {}),
+  };
 }
 
 export function clearPersistedSession(): void {

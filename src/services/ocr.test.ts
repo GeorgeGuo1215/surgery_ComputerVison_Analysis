@@ -24,6 +24,7 @@ describe('self-hosted browser OCR resources', () => {
       terminate: mocks.terminate,
     });
     mocks.setParameters.mockResolvedValue(undefined);
+    mocks.terminate.mockResolvedValue(undefined);
   });
 
   it('keeps every resource under a GitHub Pages project base path', () => {
@@ -32,6 +33,38 @@ describe('self-hosted browser OCR resources', () => {
       corePath: 'https://example.github.io/petor/vendor/tesseract/core/',
       langPath: 'https://example.github.io/petor/vendor/tesseract/lang/',
     });
+  });
+
+  it('retries after initialization fails instead of caching the rejection forever', async () => {
+    mocks.createWorker.mockRejectedValueOnce(new Error('temporarily unavailable'));
+    const ocr = new BrowserOCR();
+    await expect(ocr.initialize()).rejects.toThrow('temporarily unavailable');
+    await expect(ocr.initialize()).resolves.toBeUndefined();
+    await ocr.initialize();
+    expect(mocks.createWorker).toHaveBeenCalledTimes(2);
+  });
+
+  it('releases a worker when parameter setup fails', async () => {
+    mocks.setParameters.mockRejectedValueOnce(new Error('setup failed'));
+    const ocr = new BrowserOCR();
+    await expect(ocr.initialize()).rejects.toThrow('setup failed');
+    expect(mocks.terminate).toHaveBeenCalledOnce();
+    await expect(ocr.initialize()).resolves.toBeUndefined();
+  });
+
+  it('releases late initialization after the owner stops', async () => {
+    let finish!: () => void;
+    mocks.setParameters.mockImplementationOnce(() => new Promise<void>((resolve) => { finish = resolve; }));
+    const ocr = new BrowserOCR();
+    const initializing = ocr.initialize();
+    const rejected = expect(initializing).rejects.toThrow('已取消');
+    await Promise.resolve();
+    await ocr.terminate();
+    finish();
+    await rejected;
+    expect(mocks.terminate).toHaveBeenCalledOnce();
+    await ocr.initialize();
+    expect(mocks.createWorker).toHaveBeenCalledTimes(2);
   });
 
   it('initializes Tesseract only from same-origin vendored resources', async () => {

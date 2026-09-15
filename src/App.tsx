@@ -265,7 +265,7 @@ function App() {
     sessionRef.current = session;
     const result = saveSession(session);
     setPersistenceWarning(result.ok
-      ? ''
+      ? result.warning ?? ''
       : result.code === 'quota-exceeded'
         ? '浏览器存储空间不足，当前草稿未保存。请立即导出 CSV 和 JSON。'
         : '浏览器本机存储不可用，当前草稿未保存。请保持页面打开并及时导出。');
@@ -1622,7 +1622,7 @@ function App() {
               {canChooseSaveDirectory() && <button type="button" className="button ghost" disabled={autoSave.saving} onClick={() => void autoSave.selectDirectory()}>{autoSave.directoryName ? '更换保存文件夹' : '选择本地保存文件夹'}</button>}
               <button type="button" className="button ghost" disabled={autoSave.saving || session.snapshots.length === 0} onClick={() => void autoSave.saveNow()}>{autoSave.saving ? '正在保存…' : '立即保存 / 重试'}</button>
             </div>
-            <p>{autoSave.directoryName ? `保存位置：${autoSave.directoryName}（刷新页面后需重新选择）。` : '保存位置：Chrome 默认下载目录。请允许本页面自动下载多个文件，并关闭“下载前询问每个文件的保存位置”。'}</p>
+            <p>{autoSave.directoryName ? `保存位置：${autoSave.directoryName}；每 5 分钟更新同一会话的完整 CSV，避免重复文件持续占用磁盘（刷新后需重新选择）。` : '保存位置：Chrome 默认下载目录，每次生成一个全量文件。长期运行请优先选择本地文件夹；下载模式需允许自动多文件下载，并关闭“下载前询问保存位置”。'}</p>
             <p>保持页面在前台、电脑不休眠；关闭页面前请点击“立即保存 / 重试”。CSV 内含记录 ID、UTC 时间戳和视频相对秒，便于对齐与去重。</p>
             <p role="status">{autoSave.enabled ? autoSave.status : '自动保存已关闭，可手动保存。'}</p>
             {autoSave.error && <p className="field-error" role="alert">{autoSave.error}</p>}

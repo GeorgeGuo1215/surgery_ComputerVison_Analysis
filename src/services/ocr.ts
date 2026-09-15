@@ -145,6 +145,7 @@ export class BrowserOCR {
   private worker: TesseractWorker | null = null;
 
   private initializing: Promise<TesseractWorker> | null = null;
+  private generation = 0;
 
   constructor(private readonly onProgress?: OCRProgress) {}
 
@@ -155,6 +156,7 @@ export class BrowserOCR {
   private async getWorker(): Promise<TesseractWorker> {
     if (this.worker) return this.worker;
     if (!this.initializing) {
+      const generation = this.generation;
       const assetPaths = resolveOCRAssetPaths();
       this.initializing = createWorker('eng', OEM.LSTM_ONLY, {
         ...assetPaths,
@@ -164,13 +166,22 @@ export class BrowserOCR {
           this.onProgress?.(message.progress ?? 0, message.status ?? 'OCR');
         },
       }).then(async (worker) => {
-        await worker.setParameters({
-          tessedit_char_whitelist: '0123456789',
-          tessedit_pageseg_mode: PSM.SINGLE_WORD,
-          preserve_interword_spaces: '1',
-        });
-        this.worker = worker;
-        return worker;
+        try {
+          await worker.setParameters({
+            tessedit_char_whitelist: '0123456789',
+            tessedit_pageseg_mode: PSM.SINGLE_WORD,
+            preserve_interword_spaces: '1',
+          });
+          if (generation !== this.generation) throw new Error('OCR 初始化已取消');
+          this.worker = worker;
+          return worker;
+        } catch (error) {
+          await worker.terminate().catch(() => undefined);
+          throw error;
+        }
+      }).catch((error) => {
+        if (generation === this.generation) this.initializing = null;
+        throw error;
       });
     }
     return this.initializing;
@@ -186,8 +197,10 @@ export class BrowserOCR {
   }
 
   async terminate(): Promise<void> {
-    if (this.worker) await this.worker.terminate();
+    this.generation += 1;
+    const worker = this.worker;
     this.worker = null;
     this.initializing = null;
+    if (worker) await worker.terminate();
   }
 }

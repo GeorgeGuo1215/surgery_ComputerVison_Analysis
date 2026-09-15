@@ -65,6 +65,21 @@ describe('session persistence migration', () => {
     expect(localStorage.getItem(LEGACY_SESSION_STORAGE_KEY)).toBeNull();
   });
 
+  it('compacts only empty inactive readings and restores their original timestamps losslessly', () => {
+    const session = makeSession(2);
+    session.snapshots[0].quality = 'complete';
+    session.snapshots[0].readings.spo2.capturedAt = '2026-08-17T07:59:59.123Z';
+    session.snapshots[0].readings.pr = formatDemoReading('pr', [117], timestamp);
+    session.snapshots[0].readings.pr.reason = '历史识别值';
+    session.snapshots[0].readings.rr.reason = '历史拒识说明';
+    expect(saveSession(session).ok).toBe(true);
+    const stored = JSON.parse(localStorage.getItem(SESSION_STORAGE_KEY)!);
+    expect(stored.snapshots[0].readings.spo2).toEqual({ capturedAt: '2026-08-17T07:59:59.123Z' });
+    expect(JSON.parse(JSON.stringify(loadSession()!.snapshots))).toEqual(JSON.parse(JSON.stringify(session.snapshots)));
+    expect(loadSession()!.snapshots[0].readings.pr.display).toBe('117');
+    expect(loadSession()!.snapshots[0].readings.rr.reason).toBe('历史拒识说明');
+  });
+
   it('loads legacy v1 data, keeps deferred PR not-configured and grades quality from HR', () => {
     const legacy = makeSession(1);
     const legacyReadings = { ...legacy.snapshots[0].readings } as Partial<ReadingMap>;

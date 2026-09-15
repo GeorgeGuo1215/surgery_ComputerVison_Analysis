@@ -14,7 +14,7 @@ const session: SessionState = {
 describe('local CSV file writer', () => {
   afterEach(() => vi.unstubAllGlobals());
 
-  it('writes timestamped CSV to the chosen folder and waits for close', async () => {
+  it('updates the same complete session CSV in the chosen folder and waits for close', async () => {
     let finish!: () => void;
     const stream = { write: vi.fn().mockResolvedValue(undefined), close: vi.fn(() => new Promise<void>((resolve) => { finish = resolve; })), abort: vi.fn() };
     const directory = { name: 'HR', getFileHandle: vi.fn().mockResolvedValue({ createWritable: vi.fn().mockResolvedValue(stream) }) };
@@ -22,10 +22,13 @@ describe('local CSV file writer', () => {
     const pending = saveHeartRateFile(session, directory).then((result) => { done = true; return result; });
     await vi.waitFor(() => expect(stream.close).toHaveBeenCalled());
     expect(done).toBe(false);
-    expect(directory.getFileHandle).toHaveBeenCalledWith(expect.stringMatching(/^OR_001_HR_session-test_.*\.csv$/), { create: true });
+    expect(directory.getFileHandle).toHaveBeenCalledWith('OR_001_HR_session-test_最新完整记录.csv', { create: true });
     expect(stream.write).toHaveBeenCalledWith(expect.stringContaining('对齐时间ISO_UTC'));
     finish();
     expect((await pending).kind).toBe('saved');
+    stream.close.mockResolvedValueOnce(undefined);
+    await saveHeartRateFile(session, directory);
+    expect(directory.getFileHandle.mock.calls[0][0]).toBe(directory.getFileHandle.mock.calls[1][0]);
   });
 
   it('aborts a failed write and propagates the failure', async () => {
