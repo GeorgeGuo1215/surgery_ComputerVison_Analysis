@@ -119,6 +119,34 @@ describe('PetOR web workflow', () => {
     expect(screen.getByRole('button', { name: '开始自动记录' })).toBeInTheDocument();
   });
 
+  it('automatically downloads at five minutes with the boundary row included', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-09-15T02:00:00.000Z'));
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
+      beginPath: vi.fn(), moveTo: vi.fn(), lineTo: vi.fn(), stroke: vi.fn(),
+      fillText: vi.fn(), fillRect: vi.fn(),
+      createLinearGradient: vi.fn(() => ({ addColorStop: vi.fn() })),
+    } as unknown as CanvasRenderingContext2D);
+    vi.spyOn(window, 'requestAnimationFrame').mockReturnValue(1);
+    vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => undefined);
+    render(<App />);
+    expect(screen.getByRole('checkbox', { name: /每 5 分钟自动保存 CSV/ })).toBeChecked();
+    fireEvent.click(screen.getByRole('button', { name: /演示模式.*无需设备/ }));
+    fireEvent.click(screen.getByRole('button', { name: '开始自动记录' }));
+    await act(async () => vi.advanceTimersByTimeAsync(299_999));
+    expect(HTMLAnchorElement.prototype.click).not.toHaveBeenCalled();
+    await act(async () => vi.advanceTimersByTimeAsync(2));
+    expect(HTMLAnchorElement.prototype.click).toHaveBeenCalledTimes(1);
+    const blob = vi.mocked(URL.createObjectURL).mock.calls[0][0] as Blob;
+    vi.useRealTimers();
+    const csv = await readBlobText(blob);
+    const lines = csv.trim().split('\r\n');
+    expect(lines).toHaveLength(3);
+    expect(csv).toContain('2026-09-15T02:00:00.000Z');
+    expect(csv).toContain('2026-09-15T02:05:00.000Z');
+    expect(screen.getByText(/已请求 Chrome 下载，请检查下载列表/)).toBeInTheDocument();
+  });
+
   it('exposes only HR controls, current reading and record columns in the MVP UI', () => {
     render(<App />);
 

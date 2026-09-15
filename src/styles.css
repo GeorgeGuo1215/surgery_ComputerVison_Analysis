@@ -871,7 +871,13 @@ input:focus, select:focus, textarea:focus { border-color: #4a9c88; box-shadow: 0
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
 }
 
+.auto-save-panel { margin: 0 0 20px; padding: 16px; border: 1px solid #d8e4e2; border-radius: 12px; background: #f5faf9; }
+.auto-save-panel .switch-row { max-width: 580px; margin-bottom: 12px; }
+.auto-save-panel .export-actions { justify-content: flex-start; flex-wrap: wrap; }
+.auto-save-panel p { margin: 10px 0 0; font-size: 12px; line-height: 1.65; overflow-wrap: anywhere; }
+
 @media print {
+  .auto-save-panel { display: none; }
   body { background: white; }
   .topbar, .safety-strip, .scope-strip, .interrupt-strip, .capture-layout, .live-section, .reference-section, .export-actions, .validation-note, .toast, .medication-catalog, .medication-editor, .medication-panel-heading .button, .medication-export-actions, .medication-event-summary > div:last-child { display: none !important; }
   main { width: 100%; padding: 0; }

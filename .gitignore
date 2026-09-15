@@ -8,3 +8,4 @@ error_frames/
 *.mp4
 *.traineddata
 *_hr_data_full.csv
+local-data/

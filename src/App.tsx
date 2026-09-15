@@ -59,6 +59,8 @@ import {
   valuesWithinCaptureRange,
 } from './domain/vitals';
 import { useCamera } from './hooks/useCamera';
+import { useAutoSave } from './hooks/useAutoSave';
+import { canChooseSaveDirectory } from './services/autoSave';
 import { useInstallPrompt } from './hooks/useInstallPrompt';
 import { useSpeechReadiness } from './hooks/useSpeechReadiness';
 import { useVideoFile } from './hooks/useVideoFile';
@@ -397,6 +399,7 @@ function App() {
       }
 
       try {
+        const capturedAt = new Date().toISOString();
         const frozenFrame = captureFrozenFrame(video, video.videoWidth, video.videoHeight);
         for (const definition of ACTIVE_VITAL_DEFINITIONS) {
           if (cancelled) return;
@@ -407,7 +410,6 @@ function App() {
           const crop = cropVitalForOCR(definition.key, frozenFrame, roi);
           const result = await ocrRef.current!.recognize(crop);
           if (cancelled) return;
-          const capturedAt = new Date().toISOString();
           const candidate = evaluateReading(
             definition.key,
             result.text,
@@ -530,6 +532,12 @@ function App() {
     const scheduler = window.setInterval(tick, 1000);
     return () => window.clearInterval(scheduler);
   }, [camera.status, monitoring, session.recordIntervalMinutes, session.startedAt, speechEnabled]);
+
+  const autoSave = useAutoSave(
+    session,
+    monitoring || offlineAnalysis.status === 'running' || offlineAnalysis.status === 'cancelling',
+    pageVisible,
+  );
 
   useEffect(
     () => () => {
@@ -1604,6 +1612,20 @@ function App() {
               <button type="button" className="button ghost" onClick={() => void exportJSON()} disabled={session.snapshots.length === 0}>JSON</button>
               <button type="button" className="button primary" onClick={() => void exportCSV()} disabled={session.snapshots.length === 0}>{platform.mobile && platform.fileShare ? '分享 CSV' : '导出 CSV'}</button>
             </div>
+          </div>
+          <div className="auto-save-panel">
+            <label className="switch-row">
+              <span><strong>每 5 分钟自动保存 CSV</strong><small>保存全部已记录数据；暂停或分析结束后补存。</small></span>
+              <input type="checkbox" checked={autoSave.enabled} onChange={(event) => autoSave.setEnabled(event.target.checked)} />
+            </label>
+            <div className="export-actions">
+              {canChooseSaveDirectory() && <button type="button" className="button ghost" disabled={autoSave.saving} onClick={() => void autoSave.selectDirectory()}>{autoSave.directoryName ? '更换保存文件夹' : '选择本地保存文件夹'}</button>}
+              <button type="button" className="button ghost" disabled={autoSave.saving || session.snapshots.length === 0} onClick={() => void autoSave.saveNow()}>{autoSave.saving ? '正在保存…' : '立即保存 / 重试'}</button>
+            </div>
+            <p>{autoSave.directoryName ? `保存位置：${autoSave.directoryName}（刷新页面后需重新选择）。` : '保存位置：Chrome 默认下载目录。请允许本页面自动下载多个文件，并关闭“下载前询问每个文件的保存位置”。'}</p>
+            <p>保持页面在前台、电脑不休眠；关闭页面前请点击“立即保存 / 重试”。CSV 内含记录 ID、UTC 时间戳和视频相对秒，便于对齐与去重。</p>
+            <p role="status">{autoSave.enabled ? autoSave.status : '自动保存已关闭，可手动保存。'}</p>
+            {autoSave.error && <p className="field-error" role="alert">{autoSave.error}</p>}
           </div>
           <RecordTable
             snapshots={session.snapshots}

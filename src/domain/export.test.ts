@@ -68,6 +68,31 @@ describe('audit-friendly export', () => {
     expect(safeFilenamePart(' OR/001: 豆豆 ')).toBe('OR_001_豆豆');
   });
 
+  it('keeps acquisition, alignment and analysis timestamps distinct with millisecond precision', () => {
+    const capturedAt = '2026-09-15T02:04:59.125Z';
+    const scheduledAt = '2026-09-15T02:05:00.000Z';
+    const analyzedAt = '2026-09-15T02:05:01.500Z';
+    const snapshot = createSnapshot(emptyReadingMap(capturedAt), 'scheduled', analyzedAt, scheduledAt);
+    const [header, row] = buildCSV(metadata, [snapshot]).slice(1).split('\r\n').map((line) => line.split(','));
+    expect(row[header.indexOf('对齐时间ISO_UTC')]).toBe(scheduledAt);
+    expect(row[header.indexOf('对齐时间戳ms')]).toBe(String(Date.parse(scheduledAt)));
+    expect(row[header.indexOf('HR采集时间ISO_UTC')]).toBe(capturedAt);
+    expect(row[header.indexOf('写入分析时间ISO_UTC')]).toBe(analyzedAt);
+    expect(row[header.indexOf('记录ID')]).toBe(snapshot.id);
+  });
+
+  it.each([undefined, '2026-09-15T02:00:00.000Z'])('exports absolute video alignment only with a known origin: %s', (videoStartAt) => {
+    const scheduledAt = '2026-09-15T02:05:00.000Z';
+    const snapshot = createSnapshot(emptyReadingMap(scheduledAt), 'scheduled', '2026-09-16T03:00:00Z', scheduledAt, {
+      inputSource: 'video', mediaTimeSeconds: 300, videoStartAt,
+    });
+    const [header, row] = buildCSV(metadata, [snapshot]).slice(1).split('\r\n').map((line) => line.split(','));
+    expect(row[header.indexOf('视频时间')]).toBe('300');
+    expect(row[header.indexOf('对齐时间ISO_UTC')]).toBe(videoStartAt ? scheduledAt : '');
+    expect(row[header.indexOf('对齐时间戳ms')]).toBe(videoStartAt ? String(Date.parse(scheduledAt)) : '');
+    expect(row[header.indexOf('HR采集时间ISO_UTC')]).toBe(videoStartAt ? scheduledAt : '');
+  });
+
   it('exports offline media time, keeps a missing HR cell empty and omits inactive PR', () => {
     const capturedAt = '2026-08-17T08:05:00.000Z';
     const readings = emptyReadingMap(capturedAt);

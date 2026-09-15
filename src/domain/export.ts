@@ -40,6 +40,12 @@ export function buildCSV(metadata: CaseMetadata, snapshots: RecordSnapshot[]): s
     '数据质量',
     '人工已核对',
     '备注',
+    '记录ID',
+    '对齐时间ISO_UTC',
+    '对齐时间戳ms',
+    'HR采集时间ISO_UTC',
+    '写入分析时间ISO_UTC',
+    '视频起始时间ISO_UTC',
   ];
 
   const metadataValues = [
@@ -84,6 +90,12 @@ export function buildCSV(metadata: CaseMetadata, snapshots: RecordSnapshot[]): s
       snapshot.quality,
       snapshot.verified ? '是' : '否',
       snapshot.note,
+      snapshot.id,
+      isOfflineVideo && !snapshot.videoStartAt ? '' : snapshot.scheduledAt,
+      isOfflineVideo && !snapshot.videoStartAt ? '' : Date.parse(snapshot.scheduledAt),
+      isOfflineVideo && !snapshot.videoStartAt ? '' : snapshot.readings.hr.capturedAt,
+      snapshot.analyzedAt ?? snapshot.recordedAt,
+      snapshot.videoStartAt ?? '',
     ];
   });
 

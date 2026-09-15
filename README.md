@@ -23,6 +23,31 @@ pnpm dev
 
 打开终端显示的 localhost 地址。Tesseract Worker、WASM 和英文/数字模型已随应用固定版本打包，运行 OCR 不依赖第三方 CDN；摄像头画面、视频文件和 ROI 裁剪不会由本应用主动上传。
 
+### Chrome 每 5 分钟自动保存到本地
+
+1. 在桌面 Chrome 打开本地应用，进入“心率记录”区域。“每 5 分钟自动保存 CSV”默认开启。
+2. 推荐点击“选择本地保存文件夹”，选一个专用文件夹并允许读写。此后每次保存直接写入该文件夹，页面只有在文件关闭写入成功后才显示“已保存”。刷新页面后需重新选择文件夹。
+3. 未选择文件夹时，应用向 Chrome 的默认下载目录发起 CSV 下载。请在 Chrome 的网站设置中允许本页面“自动下载多个文件”，并在下载设置中关闭“下载前询问每个文件的保存位置”。页面显示“已请求 Chrome 下载”仅代表请求已发出，实际结果以 Chrome 下载列表为准。
+4. 开始摄像头记录或离线视频分析后，每 **5 分钟实际运行时间**保存一次，独立于“留档间隔”和视频采样间隔。自动记录第一行立即生成；默认每五分钟新增一个时间槽。暂停或离线分析结束后，未保存的数据会在下一次检查时补存（通常约一秒内）；没有记录或数据未变化时不会重复保存。
+5. 每份 CSV 都包含当前病例的**全部已记录数据**，文件名含会话 ID 和 UTC 导出时间。合并多份文件时按“记录ID”去重；后导出的版本包含最新人工修订。用药及完整修订审计仍通过相应 CSV / JSON 按钮导出。
+6. 运行时保持页面在前台、电脑不休眠。后台会暂停实时采集，回到前台后补存已有记录；关闭页面前请点击“立即保存 / 重试”。浏览器草稿恢复与磁盘文件保存是独立功能，关闭或休眠期间不会承诺继续定时保存。
+
+本地可以使用项目中的 `local-data/` 作为专用保存目录；该目录已被 Git 忽略。若项目放在其他 pnpm 工作区内且启动触发上级项目依赖检查，可在本项目目录使用 `node node_modules/vite/bin/vite.js --host 127.0.0.1 --port 5175 --strictPort` 启动已有依赖的版本，再用 Chrome 打开 `http://127.0.0.1:5175/`。
+
+时间对齐字段：
+
+| CSV 列 | 含义 |
+| --- | --- |
+| 对齐时间ISO_UTC / 对齐时间戳ms | 时间槽的 UTC 时间 / Unix 毫秒时间戳，可直接与其他设备数据对齐 |
+| HR采集时间ISO_UTC | 摄像头抓取画面的时刻；离线多帧共识使用其所属时间槽时刻 |
+| 视频时间 | 视频相对起点的秒数，不是分析所用的时间 |
+| 写入分析时间ISO_UTC | 程序实际写入 / 完成分析的时刻，与采集时间分开 |
+| 视频起始时间ISO_UTC | 用户输入的视频第 0 秒时间 |
+
+导入视频时，请填写“视频第 0 秒时间”，应用按“起点 + 视频相对秒”建立绝对时间。如果没有填写，CSV 的绝对对齐时间、对齐时间戳和 HR 绝对采集时间保持空白，只导出视频相对秒，避免把分析当天误当作拍摄日期。原有可读时间列按电脑本地时区显示；跨设备对齐请使用 UTC / 毫秒列，并确认设备时钟一致。
+
+目录选择使用 Chrome 的 [File System Access API](https://developer.chrome.com/docs/capabilities/web-apis/file-system-access)，需由用户点击按钮授权；应用不会自行选择未授权目录。
+
 ### 跨平台 Web / PWA
 
 同一套前端面向 Windows 10/11 的 Edge/Chrome、macOS 的 Safari/Chrome，以及 Android 10+ 当前版 Chrome、iOS/iPadOS 17+ Safari。Android 与 iOS 当前只能表述为“前台条件支持、真机待验”：摄像头、视频解码、简体中文语音、系统分享与性能都要在目标真机复验。后台或锁屏运行不属于支持范围；页面会安全暂停且禁止回填旧值。桌面端可从地址栏安装，iPhone/iPad 可用“分享 → 添加到主屏幕”；摄像头必须通过 HTTPS 或 localhost 访问。
@@ -71,7 +96,7 @@ pnpm test:run
 pnpm build
 ```
 
-GitHub Pages 工作流位于 [`.github/workflows/pages.yml`](.github/workflows/pages.yml)。本轮改动目前只存在于本地，尚未提交、推送或部署，因而没有可作为当前版本验收证据的 Actions / Pages 运行记录。用户验收通过并推送到 `main` 后，工作流应在 Ubuntu、Windows 和 macOS 上并行执行类型检查与最终全量自动化测试，再构建静态站点并部署 Pages。Android Chrome 和 iOS Safari 仍需真机验收，CI 不会把桌面模拟当作真机通过。
+GitHub Pages 工作流位于 [`.github/workflows/pages.yml`](.github/workflows/pages.yml)。推送到 `main` 后，工作流在 Ubuntu、Windows 和 macOS 上并行执行类型检查与全量自动化测试，通过后构建静态站点并部署 Pages。也可以从 Actions 页面手动运行工作流。发布结果请以对应提交的 [Actions 运行状态](https://github.com/GeorgeGuo1215/surgery_ComputerVison_Analysis/actions/workflows/pages.yml) 为准。Android Chrome 和 iOS Safari 仍需真机验收，CI 不会把桌面模拟当作真机通过。
 
 完整架构、权威资料、风险控制与验收分层见 [`docs/ARCHITECTURE_AND_VALIDATION.md`](docs/ARCHITECTURE_AND_VALIDATION.md)。
 
