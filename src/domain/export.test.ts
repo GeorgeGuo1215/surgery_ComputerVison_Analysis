@@ -24,7 +24,7 @@ describe('audit-friendly export', () => {
     expect(csv).toContain(',2,自动,');
   });
 
-  it('exports only the active HR columns and does not expose deferred metrics', () => {
+  it('exports the active HR and RR columns and does not expose deferred metrics', () => {
     const capturedAt = '2026-08-17T08:00:00.000Z';
     const readings = emptyReadingMap(capturedAt);
     readings.hr = formatDemoReading('hr', [118], capturedAt);
@@ -34,7 +34,7 @@ describe('audit-friendly export', () => {
     const [header, row] = csv.slice(1).split('\r\n');
 
     expect(header).toContain('HR,HR候选值,HR置信度,HR状态,HR原始文字');
-    expect(header).not.toMatch(/SpO₂|PR|NIBP|RR|EtCO₂|FiCO₂|TEMP/);
+    expect(header).not.toMatch(/SpO₂|PR|NIBP|EtCO₂|FiCO₂|TEMP/);
     expect(row).toContain('118,,99,ok,118');
     expect(row).not.toContain('98,99,ok,98');
     expect(row).not.toContain('117,99,ok,117');
@@ -118,7 +118,7 @@ describe('audit-friendly export', () => {
     expect(row).not.toContain('86,99,ok,86');
   });
 
-  it('projects JSON audit export to HR while preserving explicit deferred scope', () => {
+  it('projects JSON audit export to HR and RR while preserving explicit deferred scope', () => {
     const capturedAt = '2026-08-17T08:00:00.000Z';
     const readings = emptyReadingMap(capturedAt);
     readings.hr = formatDemoReading('hr', [118], capturedAt);
@@ -141,11 +141,11 @@ describe('audit-friendly export', () => {
     const projected = projectSessionForExport(session);
 
     expect(projected.productScope).toEqual({
-      activeVitalKeys: ['hr'],
-      deferredVitalKeys: ['spo2', 'pr', 'nibp', 'rr', 'etco2', 'fico2', 'temp'],
+      activeVitalKeys: ['hr', 'rr'],
+      deferredVitalKeys: ['spo2', 'pr', 'nibp', 'etco2', 'fico2', 'temp'],
     });
-    expect(Object.keys(projected.rois)).toEqual(['hr']);
-    expect(Object.keys(projected.snapshots[0].readings)).toEqual(['hr']);
+    expect(Object.keys(projected.rois)).toEqual(['hr', 'rr']);
+    expect(Object.keys(projected.snapshots[0].readings)).toEqual(['hr', 'rr']);
     expect(projected.snapshots[0].audit.map(({ metric }) => metric)).toEqual(['hr']);
     expect(Object.keys(session.snapshots[0].readings)).toHaveLength(8);
     expect(session.snapshots[0].audit).toHaveLength(2);

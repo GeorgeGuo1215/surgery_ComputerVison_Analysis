@@ -37,7 +37,7 @@ export async function chooseSaveDirectory(): Promise<SaveDirectory | null> {
 export async function saveHeartRateFile(session: SessionState, directory: SaveDirectory | null) {
   const savedAt = new Date().toISOString();
   const suffix = directory ? '最新完整记录' : savedAt.replace(/[:.]/g, '-');
-  const filename = `${safeFilenamePart(session.metadata.caseId || session.metadata.patientName)}_HR_${safeFilenamePart(session.sessionId)}_${suffix}.csv`;
+  const filename = `${safeFilenamePart(session.metadata.caseId || session.metadata.patientName)}_HR_RR_${safeFilenamePart(session.sessionId)}_${suffix}.csv`;
   const content = buildCSV(session.metadata, session.snapshots);
   if (!directory) {
     downloadText(content, filename, 'text/csv;charset=utf-8');

@@ -22,7 +22,7 @@ describe('local CSV file writer', () => {
     const pending = saveHeartRateFile(session, directory).then((result) => { done = true; return result; });
     await vi.waitFor(() => expect(stream.close).toHaveBeenCalled());
     expect(done).toBe(false);
-    expect(directory.getFileHandle).toHaveBeenCalledWith('OR_001_HR_session-test_最新完整记录.csv', { create: true });
+    expect(directory.getFileHandle).toHaveBeenCalledWith('OR_001_HR_RR_session-test_最新完整记录.csv', { create: true });
     expect(stream.write).toHaveBeenCalledWith(expect.stringContaining('对齐时间ISO_UTC'));
     finish();
     expect((await pending).kind).toBe('saved');

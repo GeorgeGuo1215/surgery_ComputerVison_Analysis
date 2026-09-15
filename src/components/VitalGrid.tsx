@@ -1,5 +1,5 @@
 import type { ReadingMap, VitalKey, VitalReading } from '../domain/types';
-import { ACTIVE_VITAL_DEFINITIONS, isAcceptedHeartRateReading } from '../domain/vitals';
+import { ACTIVE_VITAL_DEFINITIONS, isAcceptedVitalReading } from '../domain/vitals';
 
 interface VitalGridProps {
   readings: ReadingMap;
@@ -10,9 +10,7 @@ interface VitalGridProps {
 function Sparkline({ readings, color }: { readings: VitalReading[]; color: string }) {
   const values = readings
     .filter((reading) => (
-      reading.key === 'hr'
-        ? isAcceptedHeartRateReading(reading)
-        : (reading.status === 'ok' || reading.status === 'manual-corrected') && reading.values.length > 0
+      isAcceptedVitalReading(reading)
     ))
     .slice(-18)
     .map((reading) => reading.values[0]);
@@ -41,12 +39,10 @@ const statusText = {
 
 export function VitalGrid({ readings, history, onCalibrate }: VitalGridProps) {
   return (
-    <div className="vital-grid is-hr-only">
+    <div className="vital-grid is-hr-rr">
       {ACTIVE_VITAL_DEFINITIONS.map((definition) => {
         const reading = readings[definition.key];
-        const reliable = definition.key === 'hr'
-          ? isAcceptedHeartRateReading(reading)
-          : reading.status === 'ok' || reading.status === 'manual-corrected';
+        const reliable = isAcceptedVitalReading(reading);
         return (
           <article className={`vital-card status-${reading.status}`} key={definition.key} style={{ '--metric-color': definition.color } as React.CSSProperties}>
             <div className="vital-card-head">

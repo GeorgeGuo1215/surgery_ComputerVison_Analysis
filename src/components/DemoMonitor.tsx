@@ -66,9 +66,11 @@ export function DemoMonitor({ canvasRef, readings }: DemoMonitorProps) {
       label('ECG  II', 35, 33, VITAL_BY_KEY.hr.color);
       text(readings.hr.display, 35, 127, 82, VITAL_BY_KEY.hr.color);
       drawWave(150, VITAL_BY_KEY.hr.color, 30, 3);
+      label('RESP /min', 690, 180, VITAL_BY_KEY.rr.color);
+      text(readings.rr.display, 690, 265, 72, VITAL_BY_KEY.rr.color);
       context.fillStyle = 'rgba(255,255,255,.42)';
       context.font = '600 18px system-ui, sans-serif';
-      context.fillText('HR-ONLY MVP · OTHER METRICS DEFERRED', 35, 245);
+      context.fillText('HR + RR · DEMO SIGNAL', 35, 245);
       context.font = '500 13px system-ui, sans-serif';
       context.fillText('PET OR / DEMO SIGNAL', 35, 512);
       animationId = requestAnimationFrame(draw);

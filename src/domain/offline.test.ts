@@ -16,10 +16,10 @@ function reading(display: string | null, confidence: number, status: VitalReadin
 }
 
 describe('offline video sampling', () => {
-  it.each([30, 60, 300])('uses five-frame HR-only consensus for a %d-second standard interval', (intervalSeconds) => {
+  it.each([30, 60, 300])('uses five-frame HR and RR consensus for a %d-second standard interval', (intervalSeconds) => {
     expect(buildOfflineAnalysisPlan(intervalSeconds)).toMatchObject({
       mode: 'hr-standard',
-      metricKeys: ['hr'],
+      metricKeys: ['hr', 'rr'],
       consensusFrames: 5,
       frameSpacingSeconds: 0.5,
       snapshotBatchSize: 1,
@@ -53,7 +53,7 @@ describe('offline video sampling', () => {
 
     expect(plan).toMatchObject({
       mode: 'hr-per-second',
-      metricKeys: ['hr'],
+      metricKeys: ['hr', 'rr'],
       consensusFrames: 3,
       snapshotBatchSize: 25,
     });

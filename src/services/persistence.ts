@@ -3,6 +3,8 @@ import type { ReadingMap, RecordSnapshot, SessionState, VitalReading } from '../
 import { normalizeMedicationState } from '../domain/medications';
 import {
   DEFAULT_ROIS,
+  ACTIVE_VITAL_KEYS,
+  isAcceptedVitalReading,
   HEART_RATE_CAPTURE_RANGE,
   VITAL_KEYS,
   emptyReadingMap,
@@ -90,6 +92,11 @@ function normalizeReadings(
         ? '历史草稿中的 HR 超出当前 0–200 bpm 整数范围，已降级为候选'
         : '历史草稿中的 HR 不满足当前可靠值规则，已降级为候选',
     };
+  }
+  const respiratoryRate = normalized.rr;
+  if ((respiratoryRate.status === 'ok' || respiratoryRate.status === 'manual-corrected')
+    && !isAcceptedVitalReading(respiratoryRate)) {
+    normalized.rr = { ...respiratoryRate, status: 'low-confidence', reason: '历史 RR 不满足 0–180 次/分钟整数规则，已保留为候选' };
   }
   return normalized;
 }
@@ -181,7 +188,7 @@ export function saveSession(state: SessionState): SaveSessionResult {
           const reading = snapshot.readings[key];
           // Omit only exact empty defaults. Retain timestamps, historical readings,
           // reasons and future fields; normalization restores the same empty value.
-          const empty = key !== 'hr' && JSON.stringify(reading) === JSON.stringify(emptyReadingMap(reading.capturedAt)[key]);
+          const empty = !ACTIVE_VITAL_KEYS.includes(key) && JSON.stringify(reading) === JSON.stringify(emptyReadingMap(reading.capturedAt)[key]);
           return [key, empty ? { capturedAt: reading.capturedAt } : reading];
         })),
       })),

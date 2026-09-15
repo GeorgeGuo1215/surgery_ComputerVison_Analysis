@@ -16,7 +16,7 @@ vi.mock('./services/ocr', async (importOriginal) => {
     ...actual,
     captureFrozenFrame: vi.fn(() => document.createElement('canvas')),
     cropRawForOCR: vi.fn(() => document.createElement('canvas')),
-    cropAndPreprocess: vi.fn(() => document.createElement('canvas')),
+    cropAndPreprocess: vi.fn(() => { const crop = document.createElement('canvas'); crop.dataset.metric = 'rr'; return crop; }),
   };
 });
 
@@ -60,7 +60,7 @@ async function importReadySameNameVideo(duration = 10) {
     videoHeight: { value: 960, configurable: true },
   });
   fireEvent.loadedMetadata(video);
-  const start = await screen.findByRole('button', { name: '开始离线 HR 分析' });
+  const start = await screen.findByRole('button', { name: '开始离线 HR + RR 分析' });
   await waitFor(() => expect(start).toBeEnabled());
   return start;
 }
@@ -113,9 +113,9 @@ describe('PetOR web workflow', () => {
 
   it('renders the safety boundary and complete workflow', () => {
     render(<App />);
-    expect(screen.getByText('仅用于 HR 心率辅助转录和人工用药记录。')).toBeInTheDocument();
+    expect(screen.getByText('仅用于 HR 心率、RR 呼吸率辅助转录和人工用药记录。')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /演示模式/ })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: '心率记录' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '心率与呼吸率记录' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '开始自动记录' })).toBeInTheDocument();
   });
 
@@ -144,21 +144,29 @@ describe('PetOR web workflow', () => {
     expect(lines).toHaveLength(3);
     expect(csv).toContain('2026-09-15T02:00:00.000Z');
     expect(csv).toContain('2026-09-15T02:05:00.000Z');
+    expect(lines[0]).toContain('RR,RR候选值,RR置信度,RR状态');
+    const columns = lines[0].split(',');
+    for (const line of lines.slice(1)) {
+      const cells = line.split(',');
+      expect(Number(cells[columns.indexOf('RR')])).toBeGreaterThan(0);
+      expect(cells[columns.indexOf('RR采集时间ISO_UTC')]).toBe(cells[columns.indexOf('HR采集时间ISO_UTC')]);
+    }
     expect(screen.getByText(/已请求 Chrome 下载，请检查下载列表/)).toBeInTheDocument();
   });
 
-  it('exposes only HR controls, current reading and record columns in the MVP UI', () => {
+  it('exposes HR and RR controls, current reading and record columns in the MVP UI', () => {
     render(<App />);
 
     expect(screen.getAllByText('HR').length).toBeGreaterThan(0);
+    expect(screen.getByRole('button', { name: /RR.*呼吸率.*重画/ })).toBeInTheDocument();
     const vitalGridText = document.querySelector('.vital-grid')?.textContent ?? '';
     const recordHeaderText = document.querySelector('.record-table thead')?.textContent ?? '';
-    for (const deferredLabel of ['SpO₂', 'PR', 'NIBP', 'RR', 'EtCO₂', 'FiCO₂', 'TEMP']) {
+    for (const deferredLabel of ['SpO₂', 'PR', 'NIBP', 'EtCO₂', 'FiCO₂', 'TEMP']) {
       expect(vitalGridText).not.toContain(deferredLabel);
       expect(recordHeaderText).not.toContain(deferredLabel);
       expect(screen.queryByRole('button', { name: new RegExp(`^${deferredLabel}`) })).not.toBeInTheDocument();
     }
-    expect(document.querySelector('.live-summary')?.textContent).toContain('0 / 1 项可记录');
+    expect(document.querySelector('.live-summary')?.textContent).toContain('0 / 2 项可记录');
   });
 
   it('records a fixed slot inside a sub-30-second hidden interval as missing after the page resumes', async () => {
@@ -314,20 +322,20 @@ describe('PetOR web workflow', () => {
   it('applies cross-slot stabilization to offline 50 → 120 → 121 without averaging or forward fill', async () => {
     vi.spyOn(BrowserOCR.prototype, 'initialize').mockResolvedValue(undefined);
     const observed = [50, 50, 50, 120, 120, 120, 121, 121, 121];
-    const recognize = vi.spyOn(BrowserOCR.prototype, 'recognize').mockImplementation(async () => ({
-      text: String(observed.shift()),
+    const recognize = vi.spyOn(BrowserOCR.prototype, 'recognize').mockImplementation(async (crop) => ({
+      text: (crop as HTMLCanvasElement).dataset.metric === 'rr' ? '18' : String(observed.shift()),
       confidence: 99,
     }));
 
     render(<App />);
     await importReadySameNameVideo(2.1);
     fireEvent.change(screen.getByLabelText('视频记录间隔'), { target: { value: '1' } });
-    fireEvent.click(await screen.findByRole('button', { name: '开始逐秒 HR 分析' }));
+    fireEvent.click(await screen.findByRole('button', { name: '开始逐秒 HR + RR 分析' }));
 
     await waitFor(() => {
       expect(document.querySelector('.toast')).toHaveTextContent('离线分析完成：生成 3 行记录');
     });
-    expect(recognize).toHaveBeenCalledTimes(9);
+    expect(recognize).toHaveBeenCalledTimes(18);
     expect(observed).toHaveLength(0);
 
     await waitFor(() => {
@@ -356,6 +364,9 @@ describe('PetOR web workflow', () => {
         quality: 'complete',
       },
     ]);
+    for (const row of videoRows) {
+      expect(row.readings.rr).toMatchObject({ display: '18', status: 'ok', capturedAt: row.readings.hr.capturedAt });
+    }
     expect(videoRows[1].readings.hr.display).not.toBe('50');
     expect(videoRows[2].readings.hr.display).not.toBe('120.5');
 
@@ -395,8 +406,8 @@ describe('PetOR web workflow', () => {
     vi.spyOn(HTMLMediaElement.prototype, 'load').mockImplementation(() => undefined);
     vi.spyOn(BrowserOCR.prototype, 'initialize').mockResolvedValue(undefined);
     const observed = [50, 50, 120, 120, 120];
-    const recognize = vi.spyOn(BrowserOCR.prototype, 'recognize').mockImplementation(async () => ({
-      text: String(observed.shift()),
+    const recognize = vi.spyOn(BrowserOCR.prototype, 'recognize').mockImplementation(async (crop) => ({
+      text: (crop as HTMLCanvasElement).dataset.metric === 'rr' ? '18' : String(observed.shift()),
       confidence: 99,
     }));
 
@@ -414,14 +425,18 @@ describe('PetOR web workflow', () => {
     });
 
     const advanceToRecognitionCount = async (count: number) => {
-      for (let attempt = 0; attempt < 10 && recognize.mock.calls.length < count; attempt += 1) {
+      for (let attempt = 0; attempt < 10 && recognize.mock.calls.length < count * 2; attempt += 1) {
         await act(async () => {
           await vi.advanceTimersByTimeAsync(attempt === 0 ? 0 : 1_200);
         });
       }
-      expect(recognize).toHaveBeenCalledTimes(count);
+      expect(recognize).toHaveBeenCalledTimes(count * 2);
     };
 
+    await advanceToRecognitionCount(1);
+    expect(document.querySelectorAll('.vital-card')[1]).toHaveClass('status-low-confidence');
+    await advanceToRecognitionCount(2);
+    expect(document.querySelectorAll('.vital-card')[1]).toHaveClass('status-ok');
     await advanceToRecognitionCount(4);
     expect(document.querySelector('.vital-card')).toHaveClass('status-low-confidence');
     expect(document.querySelector('.vital-value')).toHaveTextContent('120');
@@ -468,7 +483,8 @@ describe('PetOR web workflow', () => {
     vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined);
     vi.spyOn(HTMLMediaElement.prototype, 'load').mockImplementation(() => undefined);
     const observed: Array<number | Error> = [50, 50, 120, 120, new Error('模拟 OCR 丢帧'), 120];
-    const recognize = vi.spyOn(BrowserOCR.prototype, 'recognize').mockImplementation(async () => {
+    const recognize = vi.spyOn(BrowserOCR.prototype, 'recognize').mockImplementation(async (crop) => {
+      if ((crop as HTMLCanvasElement).dataset.metric === 'rr') return { text: '18', confidence: 99 };
       const next = observed.shift();
       if (next instanceof Error) throw next;
       return { text: String(next), confidence: 99 };
@@ -487,12 +503,12 @@ describe('PetOR web workflow', () => {
       await Promise.resolve();
     });
     const advanceToRecognitionCount = async (count: number) => {
-      for (let attempt = 0; attempt < 10 && recognize.mock.calls.length < count; attempt += 1) {
+      for (let attempt = 0; attempt < 10 && recognize.mock.calls.length < count * 2; attempt += 1) {
         await act(async () => {
           await vi.advanceTimersByTimeAsync(attempt === 0 ? 0 : 1_200);
         });
       }
-      expect(recognize).toHaveBeenCalledTimes(count);
+      expect(recognize).toHaveBeenCalledTimes(count * 2);
     };
 
     await advanceToRecognitionCount(4);
@@ -555,7 +571,27 @@ describe('PetOR web workflow', () => {
     expect(payload.session.medications.audit.some((entry: { action: string }) => entry.action === 'event-created')).toBe(true);
   });
 
-  it('exports the versioned HR-only JSON envelope from the App', async () => {
+  it('allows a missing legacy RR to be manually corrected without changing HR', async () => {
+    seedExistingVideoRecord();
+    render(<App />);
+    const rrCell = document.querySelectorAll('.record-table .table-reading')[1];
+    expect(rrCell).toHaveTextContent('—');
+    fireEvent.click(rrCell);
+    expect(screen.getByRole('dialog', { name: '呼吸率' })).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText(/正确读数/), { target: { value: '18.5' } });
+    fireEvent.change(screen.getByLabelText(/修订原因/), { target: { value: '核对呼吸率画面' } });
+    fireEvent.click(screen.getByRole('button', { name: '保存并写入审计记录' }));
+    expect(screen.getByRole('dialog', { name: '呼吸率' })).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText(/正确读数/), { target: { value: '0' } });
+    fireEvent.click(screen.getByRole('button', { name: '保存并写入审计记录' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    const row = JSON.parse(localStorage.getItem('petor-monitor/session-v2')!).snapshots[0];
+    expect(row.readings.hr.display).toBe('118');
+    expect(row.readings.rr).toMatchObject({ display: '0', values: [0], status: 'manual-corrected' });
+    expect(row.audit).toEqual([expect.objectContaining({ metric: 'rr', oldValue: null, newValue: '0' })]);
+  });
+
+  it('exports the versioned HR and RR JSON envelope from the App', async () => {
     seedExistingVideoRecord();
     const createObjectURL = vi.mocked(URL.createObjectURL);
 
@@ -565,8 +601,8 @@ describe('PetOR web workflow', () => {
     const blob = createObjectURL.mock.calls[0][0] as Blob;
     const payload = JSON.parse(await readBlobText(blob));
 
-    expect(payload.schemaVersion).toBe('petor-monitor/hr-record-export/1.0');
-    expect(payload.session.productScope.activeVitalKeys).toEqual(['hr']);
-    expect(Object.keys(payload.session.snapshots[0].readings)).toEqual(['hr']);
+    expect(payload.schemaVersion).toBe('petor-monitor/vital-record-export/2.0');
+    expect(payload.session.productScope.activeVitalKeys).toEqual(['hr', 'rr']);
+    expect(Object.keys(payload.session.snapshots[0].readings)).toEqual(['hr', 'rr']);
   });
 });

@@ -1,5 +1,5 @@
 import type { ReadingMap } from '../domain/types';
-import { ACTIVE_VITAL_DEFINITIONS, isAcceptedHeartRateReading } from '../domain/vitals';
+import { ACTIVE_VITAL_DEFINITIONS, isAcceptedVitalReading } from '../domain/vitals';
 
 export function canSpeak(): boolean {
   return 'speechSynthesis' in window && 'SpeechSynthesisUtterance' in window;
@@ -29,7 +29,7 @@ export function snapshotSpeech(readings: ReadingMap): string {
     if (
       reading.status !== 'ok'
       || reading.display == null
-      || (key === 'hr' && !isAcceptedHeartRateReading(reading))
+      || !isAcceptedVitalReading(reading)
     ) return [];
     return `${label}${reading.display}${spokenUnits[unit] ?? unit}`;
   });

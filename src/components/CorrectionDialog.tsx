@@ -36,10 +36,10 @@ export function CorrectionDialog({ target, onClose, onSubmit }: CorrectionDialog
           <span>正确读数 <b>{definition.unit}</b></span>
           <input
             autoFocus
-            inputMode="decimal"
+            inputMode="numeric"
             value={value}
             onChange={(event) => setValue(event.target.value)}
-            placeholder={target.key === 'nibp' ? '120/70 (85)' : '118'}
+            placeholder={target.key === 'rr' ? '18' : '118'}
           />
         </label>
         <label className="dialog-field">

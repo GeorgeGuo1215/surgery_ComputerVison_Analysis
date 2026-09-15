@@ -889,3 +889,6 @@ input:focus, select:focus, textarea:focus { border-color: #4a9c88; box-shadow: 0
   .record-table { min-width: 0; font-size: 7pt; }
   .record-table th, .record-table td { padding: 4px; }
 }
+
+.vital-grid.is-hr-rr { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 520px) { .vital-grid.is-hr-rr { grid-template-columns: 1fr; } }

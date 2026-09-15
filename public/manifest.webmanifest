@@ -1,7 +1,7 @@
 {
   "name": "PetOR Monitor",
   "short_name": "PetOR",
-  "description": "宠物手术监护仪 HR 心率辅助转录工具",
+  "description": "宠物手术监护仪 HR 心率与 RR 呼吸率辅助转录工具",
   "id": "./",
   "start_url": "./",
   "scope": "./",

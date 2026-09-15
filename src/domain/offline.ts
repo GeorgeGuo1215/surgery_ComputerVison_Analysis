@@ -14,7 +14,7 @@ export function buildOfflineAnalysisPlan(intervalSeconds: number): OfflineAnalys
   if (intervalSeconds === 1) {
     return {
       mode: 'hr-per-second',
-      metricKeys: ['hr'],
+      metricKeys: [...ACTIVE_VITAL_KEYS],
       consensusFrames: 3,
       frameSpacingSeconds: 0.16,
       firstSlotCenterSeconds: 0.32,
@@ -124,12 +124,12 @@ export function consensusReading(
       || other.endsWith(display)
     ))
   ));
-  if (key !== 'hr' && hasLeadingDigitConflict) {
+  if (!ACTIVE_VITAL_KEYS.includes(key) && hasLeadingDigitConflict) {
     const mostComplete = [...groups.entries()]
       .sort((left, right) => right[0].length - left[0].length)[0];
     if (mostComplete) [selectedDisplay, agreeing] = mostComplete;
   }
-  if (key === 'hr' && hasLeadingDigitConflict) {
+  if (ACTIVE_VITAL_KEYS.includes(key) && hasLeadingDigitConflict) {
     return {
       key,
       display: null,

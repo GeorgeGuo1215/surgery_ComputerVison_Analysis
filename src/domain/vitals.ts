@@ -68,7 +68,7 @@ export const VITAL_DEFINITIONS: VitalDefinition[] = [
     shortLabel: 'RR',
     unit: '/min',
     color: '#f29bd5',
-    min: 2,
+    min: 0,
     max: 180,
     maxJump: 50,
     precision: 0,
@@ -119,7 +119,7 @@ export const VITAL_DEFINITIONS: VitalDefinition[] = [
 export const VITAL_KEYS = VITAL_DEFINITIONS.map(({ key }) => key);
 
 /** Current product scope. Other definitions stay in the schema for later rollout. */
-export const ACTIVE_VITAL_KEYS: VitalKey[] = ['hr'];
+export const ACTIVE_VITAL_KEYS: VitalKey[] = ['hr', 'rr'];
 export const ACTIVE_VITAL_DEFINITIONS = VITAL_DEFINITIONS.filter(
   ({ key }) => ACTIVE_VITAL_KEYS.includes(key),
 );
@@ -395,6 +395,13 @@ function parseNIBP(text: string): ParsedVital | null {
 
 export function parseVitalText(key: VitalKey, rawText: string): ParsedVital | null {
   if (key === 'hr') return postprocessHeartRateText(rawText).parsed;
+  if (key === 'rr') {
+    const text = rawText.normalize('NFKC').trim()
+      .replace(/^(?:RR|RESP|呼吸率)\s*[:：=]?\s*/iu, '')
+      .replace(/\s*(?:次\/分钟|次每分钟|\/min|brpm)\s*$/iu, '').trim();
+    if (!/^(?:0|[1-9]\d{0,2})$/u.test(text)) return null;
+    return { display: text, values: [Number(text)] };
+  }
   const text = normalizeOCRText(rawText);
   if (!text) return null;
   if (key === 'nibp') return parseNIBP(text);
@@ -417,8 +424,9 @@ export function parseVitalText(key: VitalKey, rawText: string): ParsedVital | nu
 
 export function valuesWithinCaptureRange(key: VitalKey, values: number[]): boolean {
   if (values.length === 0) return false;
+  if (key === 'rr') return values.length === 1 && Number.isInteger(values[0]) && values[0] >= 0 && values[0] <= 180;
   if (key === 'hr') {
-    return Number.isInteger(values[0])
+    return values.length === 1 && Number.isInteger(values[0])
       && values[0] >= HEART_RATE_CAPTURE_RANGE.min
       && values[0] <= HEART_RATE_CAPTURE_RANGE.max;
   }
@@ -484,7 +492,7 @@ export function evaluateReading(
     };
   }
 
-  const confidenceThreshold = key === 'hr' ? 65 : 55;
+  const confidenceThreshold = ACTIVE_VITAL_KEYS.includes(key) ? 65 : 55;
   if (confidence < confidenceThreshold) {
     return {
       key,
@@ -563,7 +571,7 @@ export function emptyReadingMap(capturedAt = new Date().toISOString()): ReadingM
         confidence: 0,
         status: 'not-configured',
         capturedAt,
-        reason: ACTIVE_VITAL_KEYS.includes(key) ? undefined : '当前版本仅启用 HR 心率分析，此字段后置',
+        reason: ACTIVE_VITAL_KEYS.includes(key) ? undefined : '当前版本启用 HR 心率与 RR 呼吸率，此字段后置',
       } satisfies VitalReading,
     ]),
   ) as unknown as ReadingMap;
@@ -584,4 +592,20 @@ export function formatDemoReading(key: VitalKey, values: number[], capturedAt: s
     status: 'ok',
     capturedAt,
   };
+}
+
+/** RR's 0–180 bound is an OCR capture constraint, not a clinical normal range. */
+export function parseManualRespiratoryRateInput(input: string): ParsedVital | null {
+  const text = input.normalize('NFKC').trim();
+  if (!/^(?:0|[1-9]\d{0,2})$/u.test(text)) return null;
+  const values = [Number(text)];
+  return valuesWithinCaptureRange('rr', values) ? { display: text, values } : null;
+}
+
+export function isAcceptedVitalReading(reading: VitalReading): boolean {
+  if (reading.key === 'hr') return isAcceptedHeartRateReading(reading);
+  if (reading.status !== 'ok' && reading.status !== 'manual-corrected') return false;
+  if (reading.key === 'rr') return valuesWithinCaptureRange('rr', reading.values)
+    && reading.display === String(reading.values[0]);
+  return reading.display != null && valuesWithinCaptureRange(reading.key, reading.values);
 }

@@ -17,6 +17,7 @@ export function simulatedSession(days: number): SessionState {
       const timestamp = new Date(start + index * 300_000).toISOString();
       const readings = emptyReadingMap(timestamp);
       readings.hr = formatDemoReading('hr', [118], timestamp);
+      readings.rr = formatDemoReading('rr', [18], timestamp);
       return { ...createSnapshot(readings, 'scheduled', timestamp, timestamp, { inputSource: 'demo' }), id: `synthetic-${index}` };
     }),
   };

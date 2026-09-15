@@ -1,5 +1,5 @@
 const CACHE_PREFIX = 'petor-monitor-';
-const CACHE_NAME = `${CACHE_PREFIX}shell-v6-long-run`;
+const CACHE_NAME = `${CACHE_PREFIX}shell-v7-respiratory-rate`;
 const CORE_PATHS = [
   './',
   './index.html',

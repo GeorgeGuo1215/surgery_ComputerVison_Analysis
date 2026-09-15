@@ -15,12 +15,12 @@ import {
   valuesWithinCaptureRange,
 } from './vitals';
 
-describe('HR-only MVP scope', () => {
-  it('keeps the complete schema available while exposing only HR as active', () => {
+describe('HR and RR scope', () => {
+  it('keeps the complete schema available while exposing HR and RR as active', () => {
     expect(VITAL_KEYS).toEqual(['hr', 'spo2', 'pr', 'nibp', 'rr', 'etco2', 'fico2', 'temp']);
-    expect(ACTIVE_VITAL_KEYS).toEqual(['hr']);
-    expect(ACTIVE_VITAL_DEFINITIONS.map(({ key }) => key)).toEqual(['hr']);
-    expect(DEFERRED_VITAL_KEYS).toEqual(['spo2', 'pr', 'nibp', 'rr', 'etco2', 'fico2', 'temp']);
+    expect(ACTIVE_VITAL_KEYS).toEqual(['hr', 'rr']);
+    expect(ACTIVE_VITAL_DEFINITIONS.map(({ key }) => key)).toEqual(['hr', 'rr']);
+    expect(DEFERRED_VITAL_KEYS).toEqual(['spo2', 'pr', 'nibp', 'etco2', 'fico2', 'temp']);
   });
 });
 

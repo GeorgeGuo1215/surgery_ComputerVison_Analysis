@@ -1,11 +1,9 @@
 import type { ReadingMap, RecordSnapshot } from './types';
-import { ACTIVE_VITAL_KEYS, isAcceptedHeartRateReading } from './vitals';
+import { ACTIVE_VITAL_KEYS, isAcceptedVitalReading } from './vitals';
 
 export function calculateSnapshotQuality(readings: ReadingMap): RecordSnapshot['quality'] {
   const okCount = ACTIVE_VITAL_KEYS.filter((key) => (
-    key === 'hr'
-      ? isAcceptedHeartRateReading(readings[key])
-      : readings[key].status === 'ok' || readings[key].status === 'manual-corrected'
+    isAcceptedVitalReading(readings[key])
   )).length;
   if (okCount === ACTIVE_VITAL_KEYS.length) return 'complete';
   const hasReviewCandidate = ACTIVE_VITAL_KEYS.some((key) => (

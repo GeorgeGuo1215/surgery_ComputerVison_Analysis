@@ -92,7 +92,7 @@ describe('real Mindray iMEC8 video OCR fixture', () => {
     });
   });
 
-  it('keeps the complete RR=13 candidate for the observed 3/13 leading-digit conflict', () => {
+  it('rejects the historical RR 3/13 crop conflict without guessing', () => {
     const fixture = REAL_VIDEO_FIXTURE.t300;
     const reading = consensusReading(
       'rr',
@@ -102,8 +102,8 @@ describe('real Mindray iMEC8 video OCR fixture', () => {
 
     expect(reading).toMatchObject({
       key: 'rr',
-      display: '13',
-      values: [13],
+      display: null,
+      values: [],
       status: 'low-confidence',
     });
     expect(reading.reason).toContain('前导数字');

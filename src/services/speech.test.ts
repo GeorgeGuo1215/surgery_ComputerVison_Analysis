@@ -44,12 +44,13 @@ describe('simplified Chinese speech', () => {
     expect(utterance.voice).toBe(simplifiedVoice);
   });
 
-  it('speaks only the active HR reading in simplified Chinese', () => {
+  it('speaks the active HR and RR readings in simplified Chinese', () => {
     const capturedAt = '2026-08-17T08:00:00.000Z';
     const readings = emptyReadingMap(capturedAt);
     readings.hr = formatDemoReading('hr', [118], capturedAt);
+    readings.rr = formatDemoReading('rr', [18], capturedAt);
     readings.temp = formatDemoReading('temp', [37.6], capturedAt);
 
-    expect(snapshotSpeech(readings)).toBe('监护自动记录。心率118次每分钟。请核对。');
+    expect(snapshotSpeech(readings)).toBe('监护自动记录。心率118次每分钟，呼吸率18次每分钟。请核对。');
   });
 });

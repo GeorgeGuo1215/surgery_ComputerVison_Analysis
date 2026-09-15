@@ -22,18 +22,22 @@ describe('fixed-slot recording', () => {
     expect(row.recordedAt).toBe('2026-08-17T08:05:03.000Z');
   });
 
-  it('marks a reliable HR-only record complete regardless of inactive fields', () => {
+  it('requires reliable HR and RR, ignoring deferred fields', () => {
     const timestamp = '2026-08-17T08:00:00.000Z';
     const readings = emptyReadingMap(timestamp);
     readings.hr = formatDemoReading('hr', [90], timestamp);
     readings.spo2 = { ...readings.spo2, status: 'not-found' };
 
+    expect(calculateSnapshotQuality(readings)).toBe('review');
+    readings.rr = formatDemoReading('rr', [18], timestamp);
     expect(calculateSnapshotQuality(readings)).toBe('complete');
 
     readings.hr.status = 'manual-corrected';
     expect(calculateSnapshotQuality(readings)).toBe('complete');
 
     readings.hr = { ...readings.hr, display: null, values: [], status: 'not-found' };
+    expect(calculateSnapshotQuality(readings)).toBe('review');
+    readings.rr = { ...readings.rr, display: null, values: [], status: 'not-found' };
     expect(calculateSnapshotQuality(readings)).toBe('missing');
   });
 });

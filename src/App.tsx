@@ -53,8 +53,9 @@ import {
   emptyReadingMap,
   evaluateReading,
   formatDemoReading,
-  isAcceptedHeartRateReading,
+  isAcceptedVitalReading,
   parseManualHeartRateInput,
+  parseManualRespiratoryRateInput,
   parseVitalText,
   valuesWithinCaptureRange,
 } from './domain/vitals';
@@ -302,14 +303,14 @@ function App() {
           ...heartRateStabilizationRef.current,
           pendingJump: null,
         };
-        consensusRef.current.hr = [];
+        for (const key of ACTIVE_VITAL_KEYS) consensusRef.current[key] = [];
       } else {
         const interruptions = [...visibilityInterruptionsRef.current];
         const last = interruptions.at(-1);
         if (last && last.visibleAt == null) interruptions[interruptions.length - 1] = { ...last, visibleAt: changedAt };
         visibilityInterruptionsRef.current = interruptions;
         if (last) {
-          setNotice('页面已从后台恢复。自动记录仍处于暂停，请检查相机画面和 HR 识别框后手动继续。');
+          setNotice('页面已从后台恢复。自动记录仍处于暂停，请检查相机画面和 HR、RR 识别框后手动继续。');
         }
       }
       setPageVisible(visible);
@@ -347,8 +348,8 @@ function App() {
       heartRateStabilizationRef.current = decision.state;
       committed = decision.reading;
     }
-    setReadings((current) => ({ ...current, [key]: committed }));
     setHistory((current) => ({ ...current, [key]: [...current[key], committed].slice(-120) }));
+    return committed;
   };
 
   useEffect(() => {
@@ -385,7 +386,6 @@ function App() {
     if (mode !== 'camera' || camera.status !== 'live') return;
     let cancelled = false;
     let timeout = 0;
-    let currentKey: VitalKey | null = null;
 
     const scan = async () => {
       if (!pageVisibleRef.current) {
@@ -401,39 +401,42 @@ function App() {
       try {
         const capturedAt = new Date().toISOString();
         const frozenFrame = captureFrozenFrame(video, video.videoWidth, video.videoHeight);
+        const frameReadings = emptyReadingMap(capturedAt);
+        let scanError = '';
         for (const definition of ACTIVE_VITAL_DEFINITIONS) {
-          if (cancelled) return;
-          currentKey = definition.key;
+          if (cancelled || !pageVisibleRef.current) return;
           const roi = sessionRef.current.rois[definition.key];
-          if (!roi) continue;
+          if (!roi) {
+            consensusRef.current[definition.key] = [];
+            continue;
+          }
           setActiveOCRKey(definition.key);
-          const crop = cropVitalForOCR(definition.key, frozenFrame, roi);
-          const result = await ocrRef.current!.recognize(crop);
-          if (cancelled) return;
-          const candidate = evaluateReading(
-            definition.key,
-            result.text,
-            result.confidence,
-            capturedAt,
-          );
-          commitReading(candidate);
-          currentKey = null;
+          let candidate: VitalReading;
+          try {
+            const crop = cropVitalForOCR(definition.key, frozenFrame, roi);
+            const result = await ocrRef.current!.recognize(crop);
+            candidate = evaluateReading(definition.key, result.text, result.confidence, capturedAt);
+          } catch (error) {
+            scanError = error instanceof Error ? error.message : String(error);
+            candidate = { ...frameReadings[definition.key], status: 'not-found',
+              reason: `OCR 失败：${scanError}；已中断连续确认` };
+          }
+          if (cancelled || !pageVisibleRef.current) return;
+          frameReadings[definition.key] = commitReading(candidate);
         }
-        setOCRProgress({ progress: 1, status: '本地 OCR 已完成一轮' });
+        // Publish both readings together so a timer cannot record mixed frames.
+        setReadings(frameReadings);
+        setOCRProgress(scanError
+          ? { progress: 0, status: `OCR 不可用：${scanError}` }
+          : { progress: 1, status: '本地 OCR 已完成一轮' });
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        if (currentKey) {
-          const capturedAt = new Date().toISOString();
-          commitReading({
-            key: currentKey,
-            display: null,
-            values: [],
-            rawText: '',
-            confidence: 0,
-            status: 'not-found',
-            capturedAt,
-            reason: `OCR 失败：${message}；已中断连续跳变确认`,
-          });
+        if (!cancelled && pageVisibleRef.current) {
+          const failed = emptyReadingMap(new Date().toISOString());
+          for (const key of ACTIVE_VITAL_KEYS) {
+            failed[key] = commitReading({ ...failed[key], status: 'not-found', reason: `画面采集失败：${message}` });
+          }
+          setReadings(failed);
         }
         setOCRProgress({ progress: 0, status: `OCR 不可用：${message}` });
       } finally {
@@ -451,7 +454,7 @@ function App() {
         ...heartRateStabilizationRef.current,
         pendingJump: null,
       };
-      consensusRef.current.hr = [];
+      for (const key of ACTIVE_VITAL_KEYS) consensusRef.current[key] = [];
     };
   }, [camera.status, mode]);
 
@@ -614,7 +617,7 @@ function App() {
     setMode('camera');
     const started = await camera.start();
     if (started) {
-      setNotice('摄像头已连接。当前只分析 HR，请检查心率 ROI 只包含心率数字。');
+      setNotice('摄像头已连接。当前分析 HR 与 RR，请分别框选心率和呼吸率数字。');
     } else {
       setMode('idle');
     }
@@ -640,7 +643,7 @@ function App() {
     heartRateStabilizationRef.current = createHeartRateStabilizationState();
     setMode('demo');
     setSession((current) => ({ ...current, rois: { ...DEFAULT_ROIS } }));
-    setNotice('已进入 HR 演示模式：心率为模拟值，仅用于验收记录、播报和导出流程。');
+    setNotice('已进入 HR + RR 演示模式：心率和呼吸率均为模拟值，仅用于验收记录、播报和导出流程。');
   };
 
   const selectVideoFile = (file: File) => {
@@ -685,8 +688,8 @@ function App() {
     videoFile.load(file);
     setOCRProgress({ progress: 0, status: '等待视频解码' });
     setNotice(isReferenceFixture
-      ? '视频仅在本机打开。已应用 10:02 附件视频的独立布局，请检查 HR 框是否覆盖数字。'
-      : '视频仅在本机浏览器中打开。已应用迈瑞 iMEC8 Vet 初始布局，请先检查 HR 识别框。');
+      ? '视频仅在本机打开。已应用 10:02 附件视频的独立布局，请分别检查 HR、RR 框是否覆盖对应数字。'
+      : '视频仅在本机浏览器中打开。已应用迈瑞 iMEC8 Vet 初始布局，请先分别检查 HR、RR 识别框。');
   };
 
   const handleVideoReady = (video: HTMLVideoElement) => {
@@ -841,7 +844,7 @@ function App() {
       currentMetric: '',
       currentMediaTime: 0,
       message: plan.mode === 'hr-per-second'
-        ? '正在初始化逐秒 HR 本地 OCR…'
+        ? '正在初始化逐秒 HR + RR 本地 OCR…'
         : '正在初始化本地 OCR…',
     });
 
@@ -855,9 +858,9 @@ function App() {
         if (plan.mode === 'hr-per-second') {
           setOfflineAnalysis((current) => ({
             ...current,
-            currentMetric: '心率',
+            currentMetric: '心率与呼吸率',
             currentMediaTime: slot.mediaTimeSeconds,
-            message: `逐秒分析 ${formatMediaTime(slot.mediaTimeSeconds)} · HR 三帧共识`,
+            message: `逐秒分析 ${formatMediaTime(slot.mediaTimeSeconds)} · HR + RR 各三帧共识`,
           }));
         }
 
@@ -958,7 +961,7 @@ function App() {
         completedSlots: slots.length,
         currentMetric: '',
         message: plan.mode === 'hr-per-second'
-          ? `完成 ${slots.length} 个逐秒 HR 时间槽，请查看参考对比并人工复核。`
+          ? `完成 ${slots.length} 个逐秒 HR + RR 时间槽，请查看参考对比并人工复核。`
           : `完成 ${slots.length} 个视频时间槽，请逐格人工核对。`,
       }));
       setOCRProgress({ progress: 1, status: '离线视频分析完成' });
@@ -1024,7 +1027,7 @@ function App() {
   };
 
   const resetSession = () => {
-    const confirmed = window.confirm('将清空当前病例、心率记录、用药事件和修订轨迹；本院药物名称目录会保留。请先导出需要保留的数据。是否继续？');
+    const confirmed = window.confirm('将清空当前病例、心率与呼吸率记录、用药事件和修订轨迹；本院药物名称目录会保留。请先导出需要保留的数据。是否继续？');
     if (!confirmed) return;
     setMonitoring(false);
     offlineCancelRef.current = true;
@@ -1061,11 +1064,11 @@ function App() {
     if (!correctionTarget) return '修订目标已失效。';
     const parsed = correctionTarget.key === 'hr'
       ? parseManualHeartRateInput(value)
-      : parseVitalText(correctionTarget.key, value);
+      : correctionTarget.key === 'rr' ? parseManualRespiratoryRateInput(value) : parseVitalText(correctionTarget.key, value);
     if (!parsed || !valuesWithinCaptureRange(correctionTarget.key, parsed.values)) {
       return correctionTarget.key === 'hr'
         ? '请输入 0–200 之间的纯整数心率，不要包含单位、符号或前导零。'
-        : `请输入可解析的 ${VITAL_BY_KEY[correctionTarget.key].label} 数值。`;
+        : correctionTarget.key === 'rr' ? '请输入 0–180 之间的纯整数呼吸率，不要包含单位、符号或前导零。' : `请输入可解析的 ${VITAL_BY_KEY[correctionTarget.key].label} 数值。`;
     }
     updateSnapshot(correctionTarget.snapshotId, (snapshot) => {
       const oldReading = snapshot.readings[correctionTarget.key];
@@ -1103,7 +1106,7 @@ function App() {
   const exportCSV = async () => {
     const result = await saveOrShareText(
       buildCSV(session.metadata, session.snapshots),
-      `${safeFilenamePart(session.metadata.caseId || session.metadata.patientName)}_心率记录.csv`,
+      `${safeFilenamePart(session.metadata.caseId || session.metadata.patientName)}_心率呼吸率记录.csv`,
       'text/csv;charset=utf-8',
       platform.mobile,
     );
@@ -1112,9 +1115,9 @@ function App() {
 
   const exportJSON = async () => {
     const payload = {
-      schemaVersion: 'petor-monitor/hr-record-export/1.0',
+      schemaVersion: 'petor-monitor/vital-record-export/2.0',
       exportedAt: new Date().toISOString(),
-      notice: 'HR 心率辅助转录草稿，需负责兽医核对；不是监护仪原始数据。其他生命体征功能当前后置。',
+      notice: 'HR 心率与 RR 呼吸率辅助转录草稿，需负责兽医核对；不是监护仪原始数据。其他生命体征功能当前后置。',
       sourceVideo: videoFile.metadata
         ? {
             ...videoFile.metadata,
@@ -1126,7 +1129,7 @@ function App() {
     };
     const result = await saveOrShareText(
       JSON.stringify(payload, null, 2),
-      `${safeFilenamePart(session.metadata.caseId || session.metadata.patientName)}_心率审计.json`,
+      `${safeFilenamePart(session.metadata.caseId || session.metadata.patientName)}_心率呼吸率审计.json`,
       'application/json;charset=utf-8',
       platform.mobile,
     );
@@ -1202,9 +1205,7 @@ function App() {
   };
 
   const reliableCount = ACTIVE_VITAL_KEYS.filter((key) => (
-    key === 'hr'
-      ? isAcceptedHeartRateReading(readings[key])
-      : readings[key].status === 'ok' || readings[key].status === 'manual-corrected'
+    isAcceptedVitalReading(readings[key])
   )).length;
   const ocrLabel =
     mode === 'demo'
@@ -1239,12 +1240,12 @@ function App() {
       <main id="top">
         <aside className="safety-strip">
           <span aria-hidden="true">!</span>
-          <p><strong>仅用于 HR 心率辅助转录和人工用药记录。</strong> 不替代监护仪原生报警、专责麻醉人员或临床判断；不计算剂量、不提供用药建议。</p>
+          <p><strong>仅用于 HR 心率、RR 呼吸率辅助转录和人工用药记录。</strong> 不替代监护仪原生报警、专责麻醉人员或临床判断；不计算剂量、不提供用药建议。</p>
         </aside>
 
         <aside className="scope-strip" role="note">
-          <strong>当前版本范围：HR 心率</strong>
-          <span>SpO₂、PR、NIBP、RR、EtCO₂、FiCO₂、TEMP 等 {DEFERRED_VITAL_KEYS.length} 项功能后置，本版本不会运行或导出这些字段的 OCR。</span>
+          <strong>当前版本范围：HR 心率 + RR 呼吸率</strong>
+          <span>SpO₂、PR、NIBP、EtCO₂、FiCO₂、TEMP 等 {DEFERRED_VITAL_KEYS.length} 项功能后置，本版本不会运行或导出这些字段的 OCR。</span>
         </aside>
 
         <aside className="platform-strip" aria-label="当前平台兼容状态">
@@ -1396,7 +1397,7 @@ function App() {
               <span className="step-number">02</span>
               <div>
                 <h2>校准识别区域</h2>
-                <p>当前只校准 HR 心率框；仅接受 0–200 bpm 的唯一整数。大跳变首次只保留候选，下一连续读数在 ±2 bpm 内才建立新基线；不平滑、不平均、不回填。</p>
+                <p>分别框选 HR 心率与 RR 呼吸率的数字，避免包含相邻参数。HR 捕获范围 0–200 bpm，RR 为 0–180 次/分钟，均要求唯一整数；这是 OCR 工程限制，不是临床正常范围。实时识别需连续两次一致；未识别不回填。</p>
               </div>
             </div>
             <div className="roi-list">
@@ -1415,7 +1416,7 @@ function App() {
                   disabled={offlineAnalysis.status === 'running' || offlineAnalysis.status === 'cancelling'}
                   onClick={() => {
                     setSession((current) => ({ ...current, rois: { ...MINDRAY_IMEC8_VIDEO_ROIS } }));
-                    setNotice('已应用 6 分钟附件视频布局，请检查 HR ROI。');
+                    setNotice('已应用 6 分钟附件视频布局，请检查 HR ROI，并手动校准 RR；RR 预设尚未经过实拍验收。');
                   }}
                 >6 分钟样本 HR 布局</button>
                 <button
@@ -1444,8 +1445,8 @@ function App() {
                 <h2>{mode === 'video' ? '离线分析' : '开始记录'}</h2>
                 <p>{mode === 'video'
                   ? offlinePlan.mode === 'hr-per-second'
-                    ? '按视频媒体时间逐秒抽取 HR 三帧共识，不使用墙上时间。'
-                    : '按视频媒体时间抽取 HR 五帧共识，不使用墙上时间。'
+                    ? '按视频媒体时间逐秒抽取 HR + RR 各三帧共识，不使用墙上时间。'
+                    : '按视频媒体时间抽取 HR + RR 各五帧共识，不使用墙上时间。'
                   : '固定时间槽，暂停或断流后不会沿用旧值。'}</p>
               </div>
             </div>
@@ -1459,10 +1460,10 @@ function App() {
                       disabled={offlineAnalysis.status === 'running' || offlineAnalysis.status === 'cancelling'}
                       onChange={(event) => setOfflineIntervalSeconds(Number(event.target.value))}
                     >
-                      <option value="300">5 分钟（HR 标准记录）</option>
-                      <option value="60">1 分钟（HR 算法测试）</option>
-                      <option value="30">30 秒（HR 参考对比，较慢）</option>
-                      <option value="1">1 秒（HR 逐秒对比，耗时）</option>
+                      <option value="300">5 分钟（HR + RR 标准记录）</option>
+                      <option value="60">1 分钟（HR + RR 算法测试）</option>
+                      <option value="30">30 秒（HR + RR 采集，HR 参考对比）</option>
+                      <option value="1">1 秒（HR + RR 逐秒采集，耗时）</option>
                     </select>
                   </label>
                   <label>
@@ -1478,7 +1479,7 @@ function App() {
                 </div>
                 {offlinePlan.mode === 'hr-per-second' && (
                   <p className="analysis-mode-note" role="note">
-                    逐秒模式只分析 HR，每槽取 3 帧共识；其他 7 项保持“未配置”。10:02 视频将生成 603 槽、约 1,809 次本地 OCR。请接电并保持页面前台，可随时停止且只保留完整槽。
+                    逐秒模式分析 HR 与 RR，每项每槽取 3 帧共识。10:02 视频将生成 603 槽、约 3,618 次本地 OCR；参考 CSV 对比仍仅针对 HR。请接电并保持页面前台，可随时停止且只保留完整槽。
                   </p>
                 )}
                 <div className="analysis-progress" aria-live="polite">
@@ -1488,7 +1489,7 @@ function App() {
                   </div>
                   <progress value={offlineAnalysis.completedUnits} max={Math.max(1, offlineAnalysis.totalUnits)} />
                   <small>{offlineAnalysis.totalUnits > 0
-                    ? `${Math.round(offlineAnalysis.completedUnits / offlineAnalysis.totalUnits * 100)}% · ${offlinePlan.mode === 'hr-per-second' ? '每槽三帧 HR 共识' : '每槽五帧 HR 共识'}`
+                    ? `${Math.round(offlineAnalysis.completedUnits / offlineAnalysis.totalUnits * 100)}% · ${offlinePlan.mode === 'hr-per-second' ? '每项每槽三帧共识' : '每项每槽五帧共识'}`
                     : '视频与裁剪画面不会上传'}</small>
                 </div>
                 {offlineAnalysis.status === 'running' || offlineAnalysis.status === 'cancelling' ? (
@@ -1501,7 +1502,7 @@ function App() {
                     <span className="record-icon" />
                     {offlineAnalysis.status === 'completed'
                       ? offlinePlan.mode === 'hr-per-second' ? '重新逐秒分析' : '重新分析视频'
-                      : offlinePlan.mode === 'hr-per-second' ? '开始逐秒 HR 分析' : '开始离线 HR 分析'}
+                      : offlinePlan.mode === 'hr-per-second' ? '开始逐秒 HR + RR 分析' : '开始离线 HR + RR 分析'}
                   </button>
                 )}
               </div>
@@ -1555,8 +1556,8 @@ function App() {
         <section className="live-section">
           <div className="section-heading">
             <div>
-              <span className="eyebrow">LIVE HEART RATE</span>
-              <h2>当前心率</h2>
+              <span className="eyebrow">LIVE HEART RATE & RESPIRATORY RATE</span>
+              <h2>当前心率与呼吸率</h2>
             </div>
             <div className="live-summary">
               <span><b>{reliableCount}</b> / {ACTIVE_VITAL_KEYS.length} 项可记录</span>
@@ -1596,9 +1597,9 @@ function App() {
         <section className="records-section section-card">
           <div className="section-heading records-heading">
             <div>
-              <span className="eyebrow">HEART RATE RECORD · DRAFT</span>
-              <h2>心率记录</h2>
-              <p>保留 HR 识别状态和置信度；点击心率可人工修订并留痕。</p>
+              <span className="eyebrow">HR + RR RECORD · DRAFT</span>
+              <h2>心率与呼吸率记录</h2>
+              <p>HR 与 RR 按同一时间槽记录，各自保留状态、置信度与采集时间；点击数值可人工修订并留痕。</p>
             </div>
             <div className="export-actions">
               <button
@@ -1645,9 +1646,9 @@ function App() {
         <section className="validation-note">
           <div>
             <span className="eyebrow">VALIDATION GATE</span>
-            <h2>当前仅验收 HR 心率流程，不可验收临床识别率</h2>
+            <h2>HR + RR 辅助转录，实拍准确率仍需核对</h2>
           </div>
-          <p>当前支持 HR 本地 OCR、固定时间槽、跳变连续确认、简体中文播报、人工修订、参考 CSV 对比和人工联合用药审计。其他生命体征后置；旧算法 filtered_value 不是人工真值，临床准确率仍需独立逐帧标注。</p>
+          <p>当前支持 HR 与 RR 本地 OCR、时间戳对齐、每 5 分钟保存、播报和修订审计。HR 参考对比保持独立；RR 尚未完成真实设备视频验收，使用前请校准并核对。旧记录缺失的 RR 保持为空。</p>
         </section>
       </main>
 

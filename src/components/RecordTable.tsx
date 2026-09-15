@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { flushSync } from 'react-dom';
 import type { RecordSnapshot, VitalKey } from '../domain/types';
 import { formatMediaTime } from '../domain/offline';
-import { ACTIVE_VITAL_DEFINITIONS, isAcceptedHeartRateReading } from '../domain/vitals';
+import { ACTIVE_VITAL_DEFINITIONS, isAcceptedVitalReading } from '../domain/vitals';
 
 interface RecordTableProps {
   snapshots: RecordSnapshot[];
@@ -98,9 +98,7 @@ export function RecordTable({ snapshots, onToggleVerified, onNoteChange, onCorre
                 </td>
                 {ACTIVE_VITAL_DEFINITIONS.map(({ key }) => {
                   const reading = snapshot.readings[key];
-                  const reliable = key === 'hr'
-                    ? isAcceptedHeartRateReading(reading)
-                    : reading.status === 'ok' || reading.status === 'manual-corrected';
+                  const reliable = isAcceptedVitalReading(reading);
                   return (
                     <td key={key}>
                       <button

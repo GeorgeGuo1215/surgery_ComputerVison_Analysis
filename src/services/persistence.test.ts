@@ -67,7 +67,7 @@ describe('session persistence migration', () => {
 
   it('compacts only empty inactive readings and restores their original timestamps losslessly', () => {
     const session = makeSession(2);
-    session.snapshots[0].quality = 'complete';
+    session.snapshots[0].quality = 'review';
     session.snapshots[0].readings.spo2.capturedAt = '2026-08-17T07:59:59.123Z';
     session.snapshots[0].readings.pr = formatDemoReading('pr', [117], timestamp);
     session.snapshots[0].readings.pr.reason = '历史识别值';
@@ -101,7 +101,7 @@ describe('session persistence migration', () => {
       status: 'not-configured',
       capturedAt: timestamp,
     });
-    expect(restored?.snapshots[0].quality).toBe('complete');
+    expect(restored?.snapshots[0].quality).toBe('review');
     expect(restored?.rois.pr).toEqual(DEFAULT_ROIS.pr);
     expect(JSON.parse(localStorage.getItem(SESSION_STORAGE_KEY)!)).toMatchObject({ version: 2 });
     expect(localStorage.getItem(LEGACY_SESSION_STORAGE_KEY)).toBeNull();

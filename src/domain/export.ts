@@ -4,7 +4,7 @@ import {
   ACTIVE_VITAL_DEFINITIONS,
   ACTIVE_VITAL_KEYS,
   DEFERRED_VITAL_KEYS,
-  isAcceptedHeartRateReading,
+  isAcceptedVitalReading,
 } from './vitals';
 
 function csvCell(value: unknown): string {
@@ -43,7 +43,7 @@ export function buildCSV(metadata: CaseMetadata, snapshots: RecordSnapshot[]): s
     '记录ID',
     '对齐时间ISO_UTC',
     '对齐时间戳ms',
-    'HR采集时间ISO_UTC',
+    ...ACTIVE_VITAL_DEFINITIONS.map(({ shortLabel }) => `${shortLabel}采集时间ISO_UTC`),
     '写入分析时间ISO_UTC',
     '视频起始时间ISO_UTC',
   ];
@@ -60,9 +60,7 @@ export function buildCSV(metadata: CaseMetadata, snapshots: RecordSnapshot[]): s
   const rows = snapshots.map((snapshot) => {
     const readings = ACTIVE_VITAL_DEFINITIONS.flatMap(({ key }) => {
       const reading = snapshot.readings[key as VitalKey];
-      const reliable = key === 'hr'
-        ? isAcceptedHeartRateReading(reading)
-        : reading.status === 'ok' || reading.status === 'manual-corrected';
+      const reliable = isAcceptedVitalReading(reading);
       return [
         reliable ? reading.display ?? '' : '',
         reliable ? '' : reading.display ?? '',
@@ -93,7 +91,7 @@ export function buildCSV(metadata: CaseMetadata, snapshots: RecordSnapshot[]): s
       snapshot.id,
       isOfflineVideo && !snapshot.videoStartAt ? '' : snapshot.scheduledAt,
       isOfflineVideo && !snapshot.videoStartAt ? '' : Date.parse(snapshot.scheduledAt),
-      isOfflineVideo && !snapshot.videoStartAt ? '' : snapshot.readings.hr.capturedAt,
+      ...ACTIVE_VITAL_KEYS.map((key) => isOfflineVideo && !snapshot.videoStartAt ? '' : snapshot.readings[key].capturedAt),
       snapshot.analyzedAt ?? snapshot.recordedAt,
       snapshot.videoStartAt ?? '',
     ];
@@ -115,9 +113,7 @@ export function projectSessionForExport(session: SessionState) {
       ...snapshot,
       readings: Object.fromEntries(ACTIVE_VITAL_KEYS.map((key) => {
         const reading = snapshot.readings[key];
-        const reliable = key === 'hr'
-          ? isAcceptedHeartRateReading(reading)
-          : reading.status === 'ok' || reading.status === 'manual-corrected';
+        const reliable = isAcceptedVitalReading(reading);
         return [key, {
           ...reading,
           acceptedDisplay: reliable ? reading.display : null,
